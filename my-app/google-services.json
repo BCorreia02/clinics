@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "751302501598",
+    "project_id": "clinicas-b9c15",
+    "storage_bucket": "clinicas-b9c15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:751302501598:android:41e1700491bfd0136cce4f",
+        "android_client_info": {
+          "package_name": "com.clinicas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApZ6k-wKrMw349p7A_JWu5cQni1gDb7QY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
