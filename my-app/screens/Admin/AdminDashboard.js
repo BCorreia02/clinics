@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, TextInput } from 'react-native';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig'; // Adjust import based on your config
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { View, Text, Button, StyleSheet, FlatList, TextInput, ActivityIndicator } from 'react-native';
 import { auth, firestore } from '../../firebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
 
-const AdminDashboard = ({ navigation }) => {
-  const [users, setUsers] = useState([]);
+const AdminDashboard = ({ navigation , handleLogout }) => {
+
   const [clinicData, setClinicData] = useState([]);
-  const [doctorName, setDoctorName] = useState('');
-  const [doctorSpecialty, setDoctorSpecialty] = useState('');
+  const [loadingClinics, setLoadingClinics] = useState(true);
 
   // Fetch Users
   useEffect(() => {
     const fetchUsers = async () => {
+      setLoadingUsers(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'users'));
-        const usersList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const querySnapshot = await getDocs(collection(firestore, 'users'));
+        const usersList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setUsers(usersList);
       } catch (error) {
         console.log('Error fetching users:', error);
+      } finally {
+        setLoadingUsers(false);
       }
     };
 
@@ -33,125 +29,84 @@ const AdminDashboard = ({ navigation }) => {
   // Fetch Clinic Data
   useEffect(() => {
     const fetchClinicData = async () => {
+      setLoadingClinics(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'clinics'));
+        const querySnapshot = await getDocs(collection(firestore, 'clinics'));
         const data = querySnapshot.docs.map(doc => doc.data());
         setClinicData(data);
       } catch (error) {
         console.log('Error fetching clinic data:', error);
+      } finally {
+        setLoadingClinics(false);
       }
     };
 
     fetchClinicData();
   }, []);
 
-  // Handle User Creation
-  const handleCreateUser = async (email, password, name, role) => {
+   // Function to update appointment status
+   const updateAppointmentStatus = async (appointmentId, newStatus) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      await setDoc(doc(firestore, 'users', user.uid), {
-        name,
-        email,
-        role,
+      await firestore.collection('appointments').doc(appointmentId).update({
+        status: newStatus,
       });
-
-      alert('User created successfully!');
+      // Refresh appointments after updating
+      setAppointments(prevAppointments =>
+        prevAppointments.map(app =>
+          app.id === appointmentId ? { ...app, status: newStatus } : app
+        )
+      );
     } catch (error) {
-      console.error('Error creating user:', error.message);
-      alert('Error creating user!');
+      console.error('Error updating appointment:', error);
     }
   };
 
-  // Handle Doctor Creation
-  const handleCreateDoctor = async () => {
-    try {
-      if (!doctorName || !doctorSpecialty) {
-        alert('Please provide both name and specialty.');
-        return;
-      }
 
-      // Add doctor to Firestore
-      await addDoc(collection(db, 'doctors'), {
-        name: doctorName,
-        specialty: doctorSpecialty,
-        createdAt: new Date(),
-      });
-
-      alert('Doctor created successfully!');
-      setDoctorName('');
-      setDoctorSpecialty('');
-    } catch (error) {
-      console.error('Error creating doctor:', error);
-      alert('Error creating doctor!');
-    }
-  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Admin Dashboard</Text>
 
       <Text style={styles.subHeader}>Clinic Data</Text>
-      {clinicData.length > 0 ? (
+      {loadingClinics ? (
+        <ActivityIndicator size="large" color="#00bcd4" />
+      ) : clinicData.length > 0 ? (
         <FlatList
-          data={clinicData}
-          renderItem={({ item }) => (
-            <View style={styles.clinicCard}>
-              <Text>{item.name}</Text>
-              <Text>{item.totalAppointments} Appointments</Text>
-            </View>
-          )}
-          keyExtractor={(item, index) => index.toString()}
-        />
+        data={appointments}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={{ marginVertical: 10 }}>
+            <Text>Doctor: {item.doctor_name}</Text>
+            <Text>Client: {item.client_name}</Text>
+            <Text>Date: {item.date} | Time: {item.time}</Text>
+            <Text>Status: {item.status}</Text>
+            <Button
+              title="Confirm"
+              onPress={() => updateAppointmentStatus(item.id, 'confirmed')}
+            />
+            <Button
+              title="Cancel"
+              onPress={() => updateAppointmentStatus(item.id, 'cancelled')}
+            />
+          </View>
+        )}
+      />
       ) : (
         <Text>No clinic data available</Text>
       )}
 
-      <Text style={styles.subHeader}>User Management</Text>
-      {users.length > 0 ? (
-        <FlatList
-          data={users}
-          renderItem={({ item }) => (
-            <View style={styles.userCard}>
-              <Text>{item.name}</Text>
-              <Text>{item.email}</Text>
-              <Text>{item.role}</Text>
-            </View>
-          )}
-          keyExtractor={(item) => item.id}
-        />
-      ) : (
-        <Text>No users found</Text>
-      )}
 
-      <Text style={styles.subHeader}>Create New Doctor</Text>
-      <TextInput
-        style={styles.input}
-        value={doctorName}
-        placeholder="Doctor's Name"
-        onChangeText={setDoctorName}
-      />
-      <TextInput
-        style={styles.input}
-        value={doctorSpecialty}
-        placeholder="Doctor's Specialty"
-        onChangeText={setDoctorSpecialty}
-      />
-      <Button title="Create Doctor" onPress={handleCreateDoctor} />
-
-      <Button
-        title="Add New User"
-        onPress={() => navigation.navigate('AdminPortal')} // Navigate to user creation screen
-      />
-      <Button
-        title="Go to Settings"
-        onPress={() => navigation.navigate('Settings')} // Placeholder for Settings screen
-      />
+      <View style={styles.buttonContainer}>
+        <Button title="Create Doctor" onPress={() => navigation.navigate('CreateDoctor')} />
+        <Button title="Add New User" onPress={() => navigation.navigate('AdminPortal')} />
+        <Button title="Go to Settings" onPress={() => navigation.navigate('Settings')} />
+        <Button title="Logout" onPress={() => handleLogout(navigation)} />
+      </View>
     </View>
   );
 };
 
+// Estilos aprimorados
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -168,24 +123,28 @@ const styles = StyleSheet.create({
   },
   clinicCard: {
     marginVertical: 10,
-    padding: 10,
+    padding: 15,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 10,
+    backgroundColor: '#e0f7fa',
+    borderColor: '#00bcd4',
   },
   userCard: {
     marginVertical: 10,
-    padding: 10,
+    padding: 15,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 10,
+    backgroundColor: '#fce4ec',
+    borderColor: '#f48fb1',
   },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    marginVertical: 10,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+  cardTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
 });
 

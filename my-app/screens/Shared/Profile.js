@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { auth, firestore } from '../../firebaseConfig'; // Assuming you've set up Firebase
+import { auth, firestore } from '../../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth'; // Import signOut function
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, handleLogout, role }) => {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [profileImage, setProfileImage] = useState('');
-  const [consultas, setConsultas] = useState([]);
+  const [appointments, setAppointments] = useState([]);
 
-  // Fetch user profile data and consultas on component mount
+  // Fetch user profile data and appointments on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Get current user
         const user = auth.currentUser;
-
         if (user) {
           // Fetch user profile data
           const userDoc = await getDoc(doc(firestore, 'users', user.uid));
@@ -28,11 +24,11 @@ const ProfileScreen = ({ navigation }) => {
             setProfileImage(userData.profileImage || 'https://via.placeholder.com/100');
           }
 
-          // Fetch consultas history
-          const consultasDoc = await getDoc(doc(firestore, 'consultas', user.uid));
-          if (consultasDoc.exists()) {
-            const consultasData = consultasDoc.data().consultas || [];
-            setConsultas(consultasData);
+          // Fetch appointments based on role
+          const appointmentsDoc = await getDoc(doc(firestore, role === 'doctor' ? 'doctorAppointments' : 'consultas', user.uid));
+          if (appointmentsDoc.exists()) {
+            const appointmentsData = appointmentsDoc.data().appointments || [];
+            setAppointments(appointmentsData);
           }
         }
       } catch (error) {
@@ -41,17 +37,7 @@ const ProfileScreen = ({ navigation }) => {
     };
 
     fetchUserData();
-  }, []);
-
-  // Logout handler
-  const handleLogout = async () => {
-    try {
-      await signOut(auth); // Sign out the user
-      navigation.navigate('Welcome'); // Navigate to the login screen after logout
-    } catch (error) {
-      console.log('Error logging out:', error);
-    }
-  };
+  }, [role]);
 
   return (
     <ScrollView style={styles.container}>
@@ -67,22 +53,22 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Edit Profile</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('EditProfile')} // Navigate to EditProfile screen
+          onPress={() => navigation.navigate('EditProfile')}
         >
           <Text style={styles.buttonText}>Edit Profile</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Consultas History Section */}
+      {/* Appointments Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appointment History</Text>
+        <Text style={styles.sectionTitle}>{role === 'doctor' ? 'Your Patients' : 'Appointment History'}</Text>
         <FlatList
-          data={consultas}
+          data={appointments}
           renderItem={({ item }) => (
-            <View style={styles.consultaItem}>
-              <Text style={styles.consultaTitle}>{item.title}</Text>
-              <Text style={styles.consultaDate}>{item.date}</Text>
-              <Text style={[styles.consultaStatus, item.status === 'Completed' ? styles.completed : styles.upcoming]}>
+            <View style={styles.appointmentItem}>
+              <Text style={styles.appointmentTitle}>{item.title}</Text>
+              <Text style={styles.appointmentDate}>{item.date}</Text>
+              <Text style={[styles.appointmentStatus, item.status === 'Completed' ? styles.completed : styles.upcoming]}>
                 {item.status}
               </Text>
             </View>
@@ -96,13 +82,13 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('ChangePassword')} // Navigate to ChangePassword screen
+          onPress={() => navigation.navigate('ChangePassword')}
         >
           <Text style={styles.buttonText}>Change Password</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.button}
-          onPress={handleLogout} // Logout handler when button is pressed
+          onPress={() => handleLogout(navigation)}
         >
           <Text style={styles.buttonText}>Log Out</Text>
         </TouchableOpacity>
@@ -157,23 +143,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  consultaItem: {
+  appointmentItem: {
     backgroundColor: '#f8f9fa',
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
     elevation: 2,
   },
-  consultaTitle: {
+  appointmentTitle: {
     fontSize: 18,
     fontWeight: '600',
   },
-  consultaDate: {
+  appointmentDate: {
     fontSize: 14,
     color: '#6c757d',
     marginTop: 5,
   },
-  consultaStatus: {
+  appointmentStatus: {
     fontSize: 14,
     marginTop: 5,
   },

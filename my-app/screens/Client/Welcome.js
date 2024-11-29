@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, Button, StyleSheet, ImageBackground, TouchableOpacity } from 'react-native';
-import { signOut } from 'firebase/auth';
 import { auth } from '../../firebaseConfig'; // Ensure to import auth from your firebase configuration
 
 const WelcomeScreen = ({ navigation }) => {
@@ -15,16 +14,6 @@ const WelcomeScreen = ({ navigation }) => {
     return () => unsubscribe();
   }, [navigation]);
 
-  // Function to handle logout
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);  // Sign out the current user
-      console.log('User logged out');
-      navigation.navigate('Welcome');  // Navigate to the Welcome screen after logout
-    } catch (error) {
-      console.error('Logout error:', error.message);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -52,13 +41,6 @@ const WelcomeScreen = ({ navigation }) => {
             <Text style={[styles.buttonText, styles.registerButtonText]}>Register</Text>
           </TouchableOpacity>
 
-          {/* Logout Button */}
-          <TouchableOpacity
-            style={[styles.button, styles.logoutButton]}  // Add custom style for the logout button
-            onPress={handleLogout}
-          >
-            <Text style={styles.buttonText}>Logout</Text>
-          </TouchableOpacity>
         </View>
       </ImageBackground>
     </View>
