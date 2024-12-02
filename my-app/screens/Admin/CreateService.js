@@ -1,55 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, Alert, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { TextInput, Menu, Provider } from 'react-native-paper';
-import { firestore } from '../../firebaseConfig';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { firestore } from '../../firebaseConfig';
+import { Menu, Provider } from 'react-native-paper';
 
-const CreateServiceScreen = ( { navigation } ) => {
+const CreateServiceScreen = ({ navigation }) => {
   const [serviceName, setServiceName] = useState('');
-  const [selectedDoctors, setSelectedDoctors] = useState([]); // Store doctor IDs
-  const [doctors, setDoctors] = useState([]);
-  const [doctorMenuVisible, setDoctorMenuVisible] = useState(false);
+  const [selectedSpecialties, setSelectedSpecialties] = useState([]); // Store specialty names
+  const [specialties, setSpecialties] = useState([]);
+  const [specialtyMenuVisible, setSpecialtyMenuVisible] = useState(false);
 
   useEffect(() => {
-    const fetchDoctors = async () => {
-      const doctorSnapshot = await getDocs(collection(firestore, 'doctors'));
-      const doctorList = doctorSnapshot.docs.map(doc => ({
-        id: doc.id,  // Store doctor ID
-        ...doc.data(),
+    const fetchData = async () => {
+      const specialtiesSnapshot = await getDocs(collection(firestore, 'specialties'));
+      const specialtiesList = specialtiesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
       }));
-      setDoctors(doctorList);
+      setSpecialties(specialtiesList);
     };
 
-    fetchDoctors();
+    fetchData();
   }, []);
 
-  const toggleDoctorSelection = (doctorId, doctorName) => {
-    setSelectedDoctors((prevSelectedDoctors) => {
-      if (prevSelectedDoctors.includes(doctorId)) {
-        return prevSelectedDoctors.filter((id) => id !== doctorId);  // Remove by ID
+  const toggleSpecialtySelection = (specialtyId, specialtyName) => {
+    setSelectedSpecialties((prevSelectedSpecialties) => {
+      if (prevSelectedSpecialties.includes(specialtyId)) {
+        return prevSelectedSpecialties.filter((id) => id !== specialtyId);
       } else {
-        return [...prevSelectedDoctors, doctorId];  // Add by ID
+        return [...prevSelectedSpecialties, specialtyId];
       }
     });
   };
 
   const createService = async () => {
-    if (!serviceName || selectedDoctors.length === 0) {
-      Alert.alert('Error', 'Please provide both service name and at least one doctor');
+    if (!serviceName || selectedSpecialties.length === 0) {
+      Alert.alert('Error', 'Please provide service name and select at least one specialty');
       return;
     }
 
     try {
       await addDoc(collection(firestore, 'services'), {
         name: serviceName,
-        doctors: selectedDoctors,  // Store doctor IDs
+        specialties: selectedSpecialties,
         createdAt: new Date(),
       });
 
       Alert.alert('Success', 'Service created successfully');
       setServiceName('');
-      setSelectedDoctors([]);  // Clear selected doctors
-      navigation.navigate('ServiceManagement')
+      setSelectedSpecialties([]);
+      navigation.navigate('ServiceManagement');
     } catch (error) {
       Alert.alert('Error', 'Failed to create service');
       console.error(error);
@@ -58,43 +58,48 @@ const CreateServiceScreen = ( { navigation } ) => {
 
   return (
     <Provider>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.heading}>Create Service</Text>
+      <View style={styles.container}>
+        <Text style={styles.header}>Create New Service</Text>
 
         <TextInput
-          label="Service Name"
+          style={styles.input}
           value={serviceName}
+          placeholder="Service Name"
           onChangeText={setServiceName}
-          style={styles.textInput}
         />
 
+        {/* Specialty selection menu */}
         <Menu
-          visible={doctorMenuVisible}
-          onDismiss={() => setDoctorMenuVisible(false)}
+          visible={specialtyMenuVisible}
+          onDismiss={() => setSpecialtyMenuVisible(false)}
           anchor={
-            <TouchableOpacity style={styles.button} onPress={() => setDoctorMenuVisible(true)}>
+            <TouchableOpacity style={styles.button} onPress={() => setSpecialtyMenuVisible(true)}>
               <Text style={styles.buttonText}>
-                {selectedDoctors.length > 0
-                  ? doctors.filter(doctor => selectedDoctors.includes(doctor.id)).map(doctor => doctor.name).join(', ')
-                  : 'Select Doctors'}
+                {selectedSpecialties.length > 0
+                  ? specialties.filter(specialty => selectedSpecialties.includes(specialty.id))
+                      .map(specialty => specialty.name).join(', ')
+                  : 'Select Specialties'}
               </Text>
             </TouchableOpacity>
           }
         >
-          {doctors.map((doctor) => (
+          {specialties.map((specialty) => (
             <Menu.Item
-              key={doctor.id}
-              title={doctor.name}  // Display doctor name
-              onPress={() => toggleDoctorSelection(doctor.id, doctor.name)}  // Pass doctor ID
+              key={specialty.id}
+              title={specialty.name}
+              onPress={() => toggleSpecialtySelection(specialty.id, specialty.name)}
               style={styles.menuItem}
             />
           ))}
         </Menu>
 
-        <TouchableOpacity style={styles.createButton} onPress={createService}>
-          <Text style={styles.createButtonText}>Create Service</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        {/* Action buttons */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.actionButton} onPress={createService}>
+            <Text style={styles.buttonText}>Create Service</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </Provider>
   );
 };
@@ -103,25 +108,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
-  heading: {
+  header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 20,
+    color: '#000',
   },
-  textInput: {
-    marginBottom: 20,
-    backgroundColor: '#fff',
-    borderRadius: 25,
+  input: {
+    width: '100%',
+    padding: 12,
+    fontSize: 16,
+    color: '#000',
+    borderBottomWidth: 1,
+    borderBottomColor: '#000', // Blue underline
+    marginBottom: 20, // Spacing between input and menu buttons
   },
   button: {
-    padding: 12,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    marginBottom: 20,
+    backgroundColor: '#000',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
     alignItems: 'center',
+    marginBottom: 10,
+    width: '100%', // Ensure buttons take the full width
   },
   buttonText: {
     fontSize: 16,
@@ -129,18 +142,24 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     padding: 10,
-    width: 20,
   },
-  createButton: {
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
     marginTop: 20,
-    backgroundColor: '#6200EE',
-    borderRadius: 8,
-    paddingVertical: 12,
   },
-  createButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
+  actionButton: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    alignItems: 'center',
+    flex: 1, // Ensure buttons have equal width
+    marginRight: 10, // Spacing between buttons
+  },
+  actionButtonLast: {
+    marginRight: 0, // Remove margin for the last button
   },
 });
 

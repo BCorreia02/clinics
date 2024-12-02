@@ -15,11 +15,11 @@ const UserManagement = ({ navigation }) => {
           id: doc.id,
           ...doc.data(),
         }));
-        
+
         // Split users into doctors and clients
         const doctorsList = usersList.filter(user => user.role === 'doctor');
         const clientsList = usersList.filter(user => user.role === 'client');
-        
+
         setDoctors(doctorsList);
         setClients(clientsList);
       } catch (error) {
@@ -83,13 +83,6 @@ const UserManagement = ({ navigation }) => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollView}>
         {clients.map((client) => renderUserCard(client, 'client'))}
       </ScrollView>
-
-      <TouchableOpacity
-        style={[styles.button, styles.addButton]}
-        onPress={() => navigation.navigate('AdminPortal')} // Navigate to AdminPortal
-      >
-        <Text style={styles.buttonText}>Add New User</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -98,16 +91,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#fff', // White background for clean look
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
+    color: '#000', // Black text for header
+    textAlign: 'center',
   },
   sectionHeader: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,
+    color: '#000', // Black for section titles
   },
   scrollView: {
     marginBottom: 20,
@@ -116,14 +113,15 @@ const styles = StyleSheet.create({
     marginRight: 15,
     padding: 15,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 8,
     width: 200,
     backgroundColor: '#fff',
-    borderColor: '#ddd',
+    borderColor: '#ddd', // Light gray border for user cards
   },
   userName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#000', // Black text for user name
   },
   actionButtons: {
     marginTop: 10,
@@ -133,7 +131,7 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 5,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
     width: 80,
@@ -143,17 +141,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   editButton: {
-    backgroundColor: '#4CAF50', // Green for edit
+    backgroundColor: '#000', // Green for edit button
   },
   removeButton: {
-    backgroundColor: '#F44336', // Red for remove
+    backgroundColor: '#000', // Red for remove button
   },
   removeButtonText: {
-    fontWeight: 'bold',
+    fontWeight: 'normal',
   },
   addButton: {
-    backgroundColor: '#2196F3', // Blue for add new user
+    backgroundColor: '#000', // Blue for add new user button
     marginTop: 20,
+    alignSelf: 'center', // Center the button at the bottom
   },
 });
 

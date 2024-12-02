@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Button, TouchableOpacity } from 'react-native';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { collection, getDocs } from 'firebase/firestore';
 import { firestore } from '../../firebaseConfig';
 import moment from 'moment';
 
@@ -88,15 +88,18 @@ const HomeDoctor = ({ navigation }) => {
 
       {/* Quick Actions */}
       <View style={styles.actionsContainer}>
-        <Button
-          title="Agendar Consulta"
+        <TouchableOpacity
+          style={[styles.actionButton, styles.primaryAction]}
           onPress={() => navigation.navigate('ScheduleAppointment')}
-        />
-        <Button
-          title="Cancelar Consulta"
-          color="#d9534f"
+        >
+          <Text style={styles.actionText}>Agendar Consulta</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.dangerAction]}
           onPress={() => console.log('Função para cancelar consulta')}
-        />
+        >
+          <Text style={styles.actionText}>Cancelar Consulta</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -106,12 +109,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
     marginBottom: 20,
   },
   statsContainer: {
@@ -132,7 +135,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
   },
   statLabel: {
     fontSize: 16,
@@ -141,7 +144,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
     marginTop: 20,
     marginBottom: 10,
   },
@@ -159,6 +162,23 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     marginTop: 20,
+  },
+  actionButton: {
+    padding: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  primaryAction: {
+    backgroundColor: '#000',
+  },
+  dangerAction: {
+    backgroundColor: '#d9534f',
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, FlatList } from 'react-native';
 import { auth, firestore } from '../../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -9,13 +9,11 @@ const ProfileScreen = ({ navigation, handleLogout, role }) => {
   const [profileImage, setProfileImage] = useState('');
   const [appointments, setAppointments] = useState([]);
 
-  // Fetch user profile data and appointments on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const user = auth.currentUser;
         if (user) {
-          // Fetch user profile data
           const userDoc = await getDoc(doc(firestore, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
@@ -24,7 +22,6 @@ const ProfileScreen = ({ navigation, handleLogout, role }) => {
             setProfileImage(userData.profileImage || 'https://via.placeholder.com/100');
           }
 
-          // Fetch appointments based on role
           const appointmentsDoc = await getDoc(doc(firestore, role === 'doctor' ? 'doctorAppointments' : 'consultas', user.uid));
           if (appointmentsDoc.exists()) {
             const appointmentsData = appointmentsDoc.data().appointments || [];
@@ -39,68 +36,68 @@ const ProfileScreen = ({ navigation, handleLogout, role }) => {
     fetchUserData();
   }, [role]);
 
-  return (
-    <ScrollView style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        <Text style={styles.title}>{userName}</Text>
-        <Text style={styles.subtitle}>{userEmail}</Text>
-      </View>
-
-      {/* Profile Edit Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Edit Profile</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('EditProfile')}
-        >
-          <Text style={styles.buttonText}>Edit Profile</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Appointments Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{role === 'doctor' ? 'Your Patients' : 'Appointment History'}</Text>
-        <FlatList
-          data={appointments}
-          renderItem={({ item }) => (
-            <View style={styles.appointmentItem}>
+  const sections = [
+    {
+      id: 'header',
+      render: () => (
+        <View style={styles.header}>
+          <Image source={{ uri: profileImage }} style={styles.profileImage} />
+          <Text style={styles.title}>{userName}</Text>
+          <Text style={styles.subtitle}>{userEmail}</Text>
+        </View>
+      ),
+    },
+    {
+      id: 'appointments',
+      render: () => (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{role === 'doctor' ? 'Your Patients' : 'Appointment History'}</Text>
+          {appointments.map((item) => (
+            <View key={item.id} style={styles.appointmentItem}>
               <Text style={styles.appointmentTitle}>{item.title}</Text>
               <Text style={styles.appointmentDate}>{item.date}</Text>
               <Text style={[styles.appointmentStatus, item.status === 'Completed' ? styles.completed : styles.upcoming]}>
                 {item.status}
               </Text>
             </View>
-          )}
-          keyExtractor={(item) => item.id}
-        />
-      </View>
+          ))}
+        </View>
+      ),
+    },
+    
+    {
+      id: 'buttons',
+      render: () => (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('EditProfile')}>
+            <Text style={styles.buttonText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ChangePassword')}>
+            <Text style={styles.buttonText}>Change Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => handleLogout(navigation)}>
+            <Text style={styles.buttonText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    },
+  ];
 
-      {/* Account Settings Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account Settings</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('ChangePassword')}
-        >
-          <Text style={styles.buttonText}>Change Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleLogout(navigation)}
-        >
-          <Text style={styles.buttonText}>Log Out</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+  return (
+    <FlatList
+      data={sections}
+      renderItem={({ item }) => item.render()}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={styles.container}
+    />
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 20,
+    backgroundColor: '#fff',
   },
   header: {
     alignItems: 'center',
@@ -115,11 +112,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2e3b4e',
+    color: '#000',
   },
   subtitle: {
     fontSize: 18,
-    color: '#6c757d',
+    color: '#666',
   },
   section: {
     marginBottom: 30,
@@ -130,13 +127,19 @@ const styles = StyleSheet.create({
     color: '#2e3b4e',
     marginBottom: 10,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
   button: {
-    backgroundColor: '#28a745',
+    backgroundColor: '#000',
     paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 8,
+    paddingHorizontal: 15,
+    borderRadius: 25,
     alignItems: 'center',
-    marginBottom: 10,
+    flex: 1,
+    marginHorizontal: 5,
   },
   buttonText: {
     color: 'white',
@@ -145,7 +148,7 @@ const styles = StyleSheet.create({
   },
   appointmentItem: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    borderRadius: 25,
     padding: 15,
     marginBottom: 10,
     elevation: 2,

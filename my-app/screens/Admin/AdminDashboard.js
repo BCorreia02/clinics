@@ -1,30 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, TextInput, ActivityIndicator } from 'react-native';
-import { auth, firestore } from '../../firebaseConfig';
+import { View, Text, Button, StyleSheet, FlatList, TextInput, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { firestore } from '../../firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
 
-const AdminDashboard = ({ navigation , handleLogout }) => {
+const AdminDashboard = ({ navigation, handleLogout }) => {
 
   const [clinicData, setClinicData] = useState([]);
   const [loadingClinics, setLoadingClinics] = useState(true);
-
-  // Fetch Users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const querySnapshot = await getDocs(collection(firestore, 'users'));
-        const usersList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setUsers(usersList);
-      } catch (error) {
-        console.log('Error fetching users:', error);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   // Fetch Clinic Data
   useEffect(() => {
@@ -44,24 +26,18 @@ const AdminDashboard = ({ navigation , handleLogout }) => {
     fetchClinicData();
   }, []);
 
-   // Function to update appointment status
-   const updateAppointmentStatus = async (appointmentId, newStatus) => {
+  // Function to update appointment status
+  const updateAppointmentStatus = async (appointmentId, newStatus) => {
     try {
       await firestore.collection('appointments').doc(appointmentId).update({
         status: newStatus,
       });
-      // Refresh appointments after updating
-      setAppointments(prevAppointments =>
-        prevAppointments.map(app =>
-          app.id === appointmentId ? { ...app, status: newStatus } : app
-        )
-      );
+      Alert.alert('Success', 'Appointment status updated');
     } catch (error) {
       console.error('Error updating appointment:', error);
+      Alert.alert('Error', 'Failed to update appointment');
     }
   };
-
-
 
   return (
     <View style={styles.container}>
@@ -72,79 +48,122 @@ const AdminDashboard = ({ navigation , handleLogout }) => {
         <ActivityIndicator size="large" color="#00bcd4" />
       ) : clinicData.length > 0 ? (
         <FlatList
-        data={appointments}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginVertical: 10 }}>
-            <Text>Doctor: {item.doctor_name}</Text>
-            <Text>Client: {item.client_name}</Text>
-            <Text>Date: {item.date} | Time: {item.time}</Text>
-            <Text>Status: {item.status}</Text>
-            <Button
-              title="Confirm"
-              onPress={() => updateAppointmentStatus(item.id, 'confirmed')}
-            />
-            <Button
-              title="Cancel"
-              onPress={() => updateAppointmentStatus(item.id, 'cancelled')}
-            />
-          </View>
-        )}
-      />
+          data={clinicData}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.clinicCard}>
+              <Text style={styles.cardTitle}>Doctor: {item.doctor_name}</Text>
+              <Text style={styles.cardTitle}>Client: {item.client_name}</Text>
+              <Text>Date: {item.date} | Time: {item.time}</Text>
+              <Text>Status: {item.status}</Text>
+              <TouchableOpacity
+                style={[styles.button, styles.confirmButton]}
+                onPress={() => updateAppointmentStatus(item.id, 'confirmed')}
+              >
+                <Text style={styles.buttonText}>Confirm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => updateAppointmentStatus(item.id, 'cancelled')}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
       ) : (
         <Text>No clinic data available</Text>
       )}
 
-
       <View style={styles.buttonContainer}>
-        <Button title="Create Doctor" onPress={() => navigation.navigate('CreateDoctor')} />
-        <Button title="Add New User" onPress={() => navigation.navigate('AdminPortal')} />
-        <Button title="Go to Settings" onPress={() => navigation.navigate('Settings')} />
-        <Button title="Logout" onPress={() => handleLogout(navigation)} />
+        <TouchableOpacity
+          style={[styles.button, styles.createDoctorButton]}
+          onPress={() => navigation.navigate('CreateDoctor')}
+        >
+          <Text style={styles.buttonText}>Create Doctor</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.settingsButton]}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.buttonText}>Go to Settings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.logoutButton]}
+          onPress={() => handleLogout(navigation)}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-// Estilos aprimorados
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#fff',
   },
   header: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   subHeader: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 20,
+    color: '#000',
+    marginBottom: 15,
   },
   clinicCard: {
-    marginVertical: 10,
-    padding: 15,
+    marginVertical: 15,
+    padding: 20,
     borderWidth: 1,
     borderRadius: 10,
     backgroundColor: '#e0f7fa',
     borderColor: '#00bcd4',
   },
-  userCard: {
-    marginVertical: 10,
-    padding: 15,
-    borderWidth: 1,
-    borderRadius: 10,
-    backgroundColor: '#fce4ec',
-    borderColor: '#f48fb1',
-  },
   cardTitle: {
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
+    color: '#00796b',
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: 30,
     flexDirection: 'column',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    width: '60%',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    backgroundColor: '#4caf50',
+  },
+  cancelButton: {
+    backgroundColor: '#f44336',
+  },
+  createDoctorButton: {
+    backgroundColor: '#000',
+  },
+  settingsButton: {
+    backgroundColor: '#000',
+  },
+  logoutButton: {
+    backgroundColor: '#000',
   },
 });
 

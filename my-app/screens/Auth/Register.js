@@ -23,6 +23,13 @@ const Register = ({ navigation }) => {
         name: name,
         email: email,
         role: 'client', // Default role
+      });
+
+      await setDoc(collection(firestore, 'clients'), {
+        userId: user.uid,
+        name: name,
+        specialty: email,
+        createdAt: new Date(),
         profileImage: '', // Optional: Add a default profile image URL
       });
 

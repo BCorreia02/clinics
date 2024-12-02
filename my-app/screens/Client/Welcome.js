@@ -1,48 +1,28 @@
 import React, { useEffect } from 'react';
-import { View, Text, Button, StyleSheet, ImageBackground, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { auth } from '../../firebaseConfig'; // Ensure to import auth from your firebase configuration
 
 const WelcomeScreen = ({ navigation }) => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        // Automatically set the user role here based on the user data
-        navigation.navigate('RoleBasedNavigator');  // Navigate to role-based screen if logged in
+        navigation.navigate('RoleBasedNavigator'); // Navigate to role-based screen if logged in
       }
     });
 
     return () => unsubscribe();
   }, [navigation]);
 
-
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={{ uri: 'https://example.com/your-background-image.jpg' }} // Use a background image or a color
-        style={styles.background}
+      <Text style={styles.title}>Welcome to Clinicas</Text>
+      <Text style={styles.subtitle}>Your health, our priority</Text>
+      <TouchableOpacity
+        style={[styles.button]}
+        onPress={() => navigation.navigate('Email')}
       >
-        <View style={styles.overlay}>
-          <Text style={styles.title}>Welcome to Clinicas</Text>
-          <Text style={styles.subtitle}>Your health, our priority</Text>
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.buttonText}>Login</Text>
-          </TouchableOpacity>
-
-          {/* Register Button */}
-          <TouchableOpacity
-            style={[styles.button, styles.registerButton]}
-            onPress={() => navigation.navigate('Register')}
-          >
-            <Text style={[styles.buttonText, styles.registerButtonText]}>Register</Text>
-          </TouchableOpacity>
-
-        </View>
-      </ImageBackground>
+        <Text style={styles.buttonText}>Start</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -50,54 +30,37 @@ const WelcomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  background: {
-    flex: 1,
+    backgroundColor: '#fff', // White background
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-  },
-  overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dark overlay for text contrast
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#000', // Black text
     marginBottom: 10,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 18,
-    color: '#fff',
+    color: '#333', // Slightly lighter black for contrast
     marginBottom: 40,
+    textAlign: 'center',
   },
   button: {
-    backgroundColor: '#007BFF', // Blue button for login
     paddingVertical: 12,
-    paddingHorizontal: 50,
-    borderRadius: 5,
-    marginBottom: 20,
-    width: '100%',
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#000', // Black border
     alignItems: 'center',
+    backgroundColor: '#000', // White button background
   },
   buttonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
-  registerButton: {
-    backgroundColor: '#28a745', // Green button for register
-  },
-  registerButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  logoutButton: {
-    backgroundColor: '#dc3545', // Red button for logout
   },
 });
 
