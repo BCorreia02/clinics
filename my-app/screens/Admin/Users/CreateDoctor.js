@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, firestore } from '../../firebaseConfig';
+import { auth, firestore } from '../../../firebaseConfig';
 import { collection, addDoc, setDoc, doc, getDocs } from 'firebase/firestore';
 import { Picker } from '@react-native-picker/picker';
 
@@ -51,11 +51,15 @@ const CreateDoctor = ({ navigation }) => {
         // DO NOT set the role as 'doctor' here, so it stays as default (admin can set roles later)
       });
   
+      // Get the specialty name from the specialties list based on the selected specialty ID
+      const selectedSpecialty = specialties.find(specialty => specialty.id === doctorSpecialty);
+      const specialtyName = selectedSpecialty ? selectedSpecialty.name : '';
+  
       // Create a doctor record in the doctors collection
       await addDoc(collection(firestore, 'doctors'), {
         name: doctorName,
-        specialty: doctorSpecialty, // Specialty name
-        specialtyId: doctorSpecialty, // Specialty ID
+        specialty: specialtyName, // Store the specialty name
+        specialtyId: doctorSpecialty, // Store the specialty ID
         createdAt: new Date(),
         userId: user.uid, // Link the doctor's record to the user by userId
       });

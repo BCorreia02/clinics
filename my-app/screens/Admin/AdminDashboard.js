@@ -4,7 +4,6 @@ import { firestore } from '../../firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
 
 const AdminDashboard = ({ navigation, handleLogout }) => {
-
   const [clinicData, setClinicData] = useState([]);
   const [loadingClinics, setLoadingClinics] = useState(true);
 
@@ -41,8 +40,6 @@ const AdminDashboard = ({ navigation, handleLogout }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Admin Dashboard</Text>
-
       <Text style={styles.subHeader}>Clinic Data</Text>
       {loadingClinics ? (
         <ActivityIndicator size="large" color="#00bcd4" />
@@ -76,12 +73,6 @@ const AdminDashboard = ({ navigation, handleLogout }) => {
       )}
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, styles.createDoctorButton]}
-          onPress={() => navigation.navigate('CreateDoctor')}
-        >
-          <Text style={styles.buttonText}>Create Doctor</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, styles.settingsButton]}
           onPress={() => navigation.navigate('Settings')}
@@ -155,9 +146,6 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#f44336',
-  },
-  createDoctorButton: {
-    backgroundColor: '#000',
   },
   settingsButton: {
     backgroundColor: '#000',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Alert, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { firestore } from '../../firebaseConfig';
+import { firestore } from '../../../firebaseConfig';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
 const ServiceManagementScreen = ({ navigation }) => {
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
   },
   serviceContainer: {
     marginBottom: 30,
-    padding: 10,
-    borderRadius: 8,
+    padding: 20,
+    borderRadius: 25,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 12,
   },
   editButton: {
     backgroundColor: '#000',

@@ -10,21 +10,23 @@ import { signOut } from 'firebase/auth';
 
 
 // Import screens
-import WelcomeScreen from './screens/Client/Welcome';
+import WelcomeScreen from './screens/Auth/Welcome';
 import HomeClientScreen from './screens/Client/HomeClient';
 import ProfileScreen from './screens/Shared/Profile';
 import RewardsScreen from './screens/Client/Rewards';
-import AddScreen from './screens/Client/BookAppointment.js/Add';
+import AddScreen from './screens/Client/BookAppointment/Add';
 import AgendaScreen from './screens/Shared/Agenda';
 import AdminDashboardScreen from './screens/Admin/AdminDashboard';
-import UserManagementScreen from './screens/Admin/UserManagement';
+import UserManagementScreen from './screens/Admin/Users/UserManagement';
 import HomeDoctorScreen from './screens/Doctor/HomeDoctor';
-import CreateDoctorScreen from './screens/Admin/CreateDoctor';
+import CreateDoctorScreen from './screens/Admin/Users/CreateDoctor';
 import AppointmentDetailsScreen from './screens/Shared/AppointmentDetails';
 import LoadingScreen from './components/LoadingScreen';
-import ServiceManagementScreen from './screens/Admin/ServiceManagement';
-import CreateServiceScreen from './screens/Admin/CreateService';
-import CreateSpecialityScreen from './screens/Admin/CreateSpecialty';
+import ServiceManagementScreen from './screens/Admin/Services/ServiceManagement';
+import CreateServiceScreen from './screens/Admin/Services/CreateService';
+import CreateSpecialityScreen from './screens/Admin/Specialties/CreateSpecialty';
+import AvailabilityManagementScreen from './screens/Admin/Availabilities/AvailabilityMagament';
+import CreateAvailabilityScreen from './screens/Admin/Availabilities/CreateAvailability';
 
 import NameScreen from './screens/Auth/Register/NameScreen';
 import EmailScreen from './screens/Auth/Register/EmailScreen';
@@ -152,7 +154,25 @@ export default function App() {
         },
       }}
     >
-       <Tab.Screen
+
+        
+     <Tab.Screen
+        name="AdminDashboard"
+        component={AdminDashboardScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Icon name="home" color={color} size={size} />,
+        }}
+      />
+
+      <Tab.Screen
+        name="Availabilities"
+        component={AvailabilityManagementScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Icon name="calendar" color={color} size={size} />,
+        }}
+      />
+   
+      <Tab.Screen
         name="UserManagement"
         component={UserManagementScreen}
         options={{
@@ -160,22 +180,14 @@ export default function App() {
         }}
       />
       
-
       <Tab.Screen
-        name="CreateDoctor"
-        component={CreateDoctorScreen}
+        name="ServiceManagement"
+        component={ServiceManagementScreen}
         options={{
-          tabBarButton: () => null, // Hides from the tab bar
+          tabBarIcon: ({ color, size }) => <Icon name="cogs" color={color} size={size} />,
         }}
       />
-      <Tab.Screen
-        name="Dashboard"
-        options={{
-          tabBarIcon: ({ color, size }) => <Icon name="dashboard" color={color} size={size} />,
-        }}
-      >
-        {(props) => <AdminDashboardScreen {...props} handleLogout={handleLogout} />}
-      </Tab.Screen>
+
       <Tab.Screen
         name="CreateSpecialty"
         component={CreateSpecialityScreen}
@@ -190,12 +202,20 @@ export default function App() {
           tabBarButton: () => null, // Hides from the tab bar
         }}
       />
-  
+
       <Tab.Screen
-        name="ServiceManagement"
-        component={ServiceManagementScreen}
+        name="CreateDoctor"
+        component={CreateDoctorScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Icon name="cogs" color={color} size={size} />,
+          tabBarButton: () => null, // Hides from the tab bar
+        }}
+      />
+
+      <Tab.Screen
+        name="CreateAvailability"
+        component={CreateAvailabilityScreen}
+        options={{
+          tabBarButton: () => null, // Hides from the tab bar
         }}
       />
     </Tab.Navigator>

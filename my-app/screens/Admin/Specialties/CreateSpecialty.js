@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { firestore } from '../../firebaseConfig';
+import { firestore } from '../../../firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
 
 const CreateSpecialtyScreen = ({ navigation }) => {

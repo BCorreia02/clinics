@@ -34,7 +34,6 @@ const PasswordScreen = ({ route, navigation }) => {
         await setDoc(doc(firestore, 'clients', user.uid), {
           userId: user.uid,
           name: name,
-          specialty: email, // Change this field if "specialty" doesn't make sense here
           createdAt: new Date(),
         });
         navigation.navigate('RoleBasedNavigator'); // Replace with your role-based navigation

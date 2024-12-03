@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
-import { firestore } from '../../firebaseConfig';
+import { firestore } from '../../../firebaseConfig';
 import { Menu, Provider } from 'react-native-paper';
 
 const CreateServiceScreen = ({ navigation }) => {
