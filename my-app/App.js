@@ -20,13 +20,12 @@ import AdminDashboardScreen from './screens/Admin/AdminDashboard';
 import UserManagementScreen from './screens/Admin/Users/UserManagement';
 import HomeDoctorScreen from './screens/Doctor/HomeDoctor';
 import CreateDoctorScreen from './screens/Admin/Users/CreateDoctor';
+import EditDoctorScreen from './screens/Admin/Users/EditDoctor';
 import AppointmentDetailsScreen from './screens/Shared/AppointmentDetails';
 import LoadingScreen from './components/LoadingScreen';
 import ServiceManagementScreen from './screens/Admin/Services/ServiceManagement';
 import CreateServiceScreen from './screens/Admin/Services/CreateService';
 import CreateSpecialityScreen from './screens/Admin/Specialties/CreateSpecialty';
-import AvailabilityManagementScreen from './screens/Admin/Availabilities/AvailabilityMagament';
-import CreateAvailabilityScreen from './screens/Admin/Availabilities/CreateAvailability';
 
 import NameScreen from './screens/Auth/Register/NameScreen';
 import EmailScreen from './screens/Auth/Register/EmailScreen';
@@ -71,7 +70,7 @@ export default function App() {
       setUserRole(null);
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Welcome' }],
+        routes: [{ name: navigation.getState()?.routes[0]?.name || 'Welcome' }],
       });
     } catch (error) {
       console.error('Error signing out:', error);
@@ -156,21 +155,14 @@ export default function App() {
     >
 
         
-     <Tab.Screen
+      <Tab.Screen
         name="AdminDashboard"
-        component={AdminDashboardScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Icon name="home" color={color} size={size} />,
         }}
-      />
-
-      <Tab.Screen
-        name="Availabilities"
-        component={AvailabilityManagementScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Icon name="calendar" color={color} size={size} />,
-        }}
-      />
+      >
+        {(props) => <AdminDashboardScreen {...props} handleLogout={handleLogout} />}
+      </Tab.Screen>
    
       <Tab.Screen
         name="UserManagement"
@@ -212,12 +204,13 @@ export default function App() {
       />
 
       <Tab.Screen
-        name="CreateAvailability"
-        component={CreateAvailabilityScreen}
+        name="EditDoctor"
+        component={EditDoctorScreen}
         options={{
           tabBarButton: () => null, // Hides from the tab bar
         }}
       />
+
     </Tab.Navigator>
   );
 

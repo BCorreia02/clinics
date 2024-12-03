@@ -6,7 +6,7 @@ import { Menu, Provider } from 'react-native-paper';
 
 const CreateServiceScreen = ({ navigation }) => {
   const [serviceName, setServiceName] = useState('');
-  const [selectedSpecialties, setSelectedSpecialties] = useState([]); // Store specialty names
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState('');
   const [specialties, setSpecialties] = useState([]);
   const [specialtyMenuVisible, setSpecialtyMenuVisible] = useState(false);
 
@@ -23,32 +23,32 @@ const CreateServiceScreen = ({ navigation }) => {
     fetchData();
   }, []);
 
-  const toggleSpecialtySelection = (specialtyId, specialtyName) => {
-    setSelectedSpecialties((prevSelectedSpecialties) => {
-      if (prevSelectedSpecialties.includes(specialtyId)) {
-        return prevSelectedSpecialties.filter((id) => id !== specialtyId);
-      } else {
-        return [...prevSelectedSpecialties, specialtyId];
-      }
-    });
+  const toggleSpecialtySelection = (specialtyId) => {
+    setSelectedSpecialtyId((prevId) => (prevId === specialtyId ? '' : specialtyId));
   };
 
   const createService = async () => {
-    if (!serviceName || selectedSpecialties.length === 0) {
-      Alert.alert('Error', 'Please provide service name and select at least one specialty');
+    if (!serviceName || !selectedSpecialtyId) {
+      Alert.alert('Error', 'Please provide service name and select a specialty');
       return;
     }
-
+  
     try {
       await addDoc(collection(firestore, 'services'), {
         name: serviceName,
-        specialties: selectedSpecialties,
+        specialtyId: selectedSpecialtyId,
         createdAt: new Date(),
       });
-
-      Alert.alert('Success', 'Service created successfully');
+  
+      // Refresh specialties and services list after creating a service
+      const specialtiesSnapshot = await getDocs(collection(firestore, 'specialties'));
+      const specialtiesList = specialtiesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+      }));
+      setSpecialties(specialtiesList);
       setServiceName('');
-      setSelectedSpecialties([]);
+      setSelectedSpecialtyId('');
       navigation.navigate('ServiceManagement');
     } catch (error) {
       Alert.alert('Error', 'Failed to create service');
@@ -75,10 +75,9 @@ const CreateServiceScreen = ({ navigation }) => {
           anchor={
             <TouchableOpacity style={styles.button} onPress={() => setSpecialtyMenuVisible(true)}>
               <Text style={styles.buttonText}>
-                {selectedSpecialties.length > 0
-                  ? specialties.filter(specialty => selectedSpecialties.includes(specialty.id))
-                      .map(specialty => specialty.name).join(', ')
-                  : 'Select Specialties'}
+                {selectedSpecialtyId
+                  ? specialties.find((specialty) => specialty.id === selectedSpecialtyId)?.name
+                  : 'Select Specialty'}
               </Text>
             </TouchableOpacity>
           }
@@ -87,8 +86,10 @@ const CreateServiceScreen = ({ navigation }) => {
             <Menu.Item
               key={specialty.id}
               title={specialty.name}
-              onPress={() => toggleSpecialtySelection(specialty.id, specialty.name)}
-              style={styles.menuItem}
+              onPress={() => {
+                toggleSpecialtySelection(specialty.id);
+                setSpecialtyMenuVisible(false);
+              }}
             />
           ))}
         </Menu>

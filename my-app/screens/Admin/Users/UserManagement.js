@@ -78,7 +78,7 @@ const UserManagement = ({ navigation }) => {
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.button, styles.editButton]}
-          onPress={() => navigation.navigate('EditUser', { userId: item.id, role })}
+          onPress={() => navigation.navigate('EditDoctor', { doctorId: item.id })}
         >
           <Text style={styles.buttonText}>Edit</Text>
         </TouchableOpacity>
