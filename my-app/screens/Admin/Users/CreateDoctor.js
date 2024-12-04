@@ -48,6 +48,7 @@ const CreateDoctor = ({ navigation }) => {
       await setDoc(doc(firestore, 'users', user.uid), {
         name: doctorName,
         email,
+        role: 'doctor',
         // DO NOT set the role as 'doctor' here, so it stays as default (admin can set roles later)
       });
   

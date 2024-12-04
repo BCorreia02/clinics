@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -223,48 +223,57 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={({ navigation }) => ({
-          headerLeft: () => (
-            <TouchableOpacity
-              style={{ marginLeft: 15 }}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-left" size={20} color="#000" />
-            </TouchableOpacity>
-          ),
-        })}
-      >
-        {isLoading ? (
-          <Stack.Screen
-            name="LoadingScreen"
-            component={LoadingScreen}
-            options={{ headerShown: false }}
-          />
-        ) : (
-          <>
-            {!userRole ? (
-              <>
+    <View style={styles.container}>
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={({ navigation }) => ({
+            headerLeft: () => (
+              <TouchableOpacity
+                style={{ marginLeft: 15 }}
+                onPress={() => navigation.goBack()}
+              >
+                <Icon name="arrow-left" size={20} color="#000" />
+              </TouchableOpacity>
+            ),
+          })}
+        >
+          {isLoading ? (
+            <Stack.Screen
+              name="LoadingScreen"
+              component={LoadingScreen}
+              options={{ headerShown: false }}
+            />
+          ) : (
+            <>
+              {!userRole ? (
+                <>
+                  <Stack.Screen
+                    name="Welcome"
+                    component={WelcomeScreen}
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="Email" component={EmailScreen} />
+                  <Stack.Screen name="Name" component={NameScreen} />
+                  <Stack.Screen name="Password" component={PasswordScreen} />
+                </>
+              ) : (
                 <Stack.Screen
-                  name="Welcome"
-                  component={WelcomeScreen}
+                  name="RoleBasedNavigator"
+                  component={RoleBasedNavigator}
                   options={{ headerShown: false }}
                 />
-                <Stack.Screen name="Email" component={EmailScreen} />
-                <Stack.Screen name="Name" component={NameScreen} />
-                <Stack.Screen name="Password" component={PasswordScreen} />
-              </>
-            ) : (
-              <Stack.Screen
-                name="RoleBasedNavigator"
-                component={RoleBasedNavigator}
-                options={{ headerShown: false }}
-              />
-            )}
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+              )}
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff', // Set background color to white
+  },
+});

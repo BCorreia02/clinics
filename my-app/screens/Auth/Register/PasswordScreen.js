@@ -14,14 +14,15 @@ const PasswordScreen = ({ route, navigation }) => {
       Alert.alert('Validation Error', 'Password is required');
       return;
     }
-
+  
     setIsLoading(true);
     try {
+      let user;
       if (name) {
         // Register the user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
+        user = userCredential.user;
+  
         // Save user data in the "users" collection
         await setDoc(doc(firestore, 'users', user.uid), {
           name,
@@ -29,13 +30,17 @@ const PasswordScreen = ({ route, navigation }) => {
           role: 'client',
           profileImage: '',
         });
-
-        // Save client-specific data in the "clients" collection
-        await setDoc(doc(firestore, 'clients', user.uid), {
-          userId: user.uid,
+  
+        // Create a separate clientId for the clients collection
+        const clientId = doc(firestore, 'clients').id; // Generate unique client ID
+  
+        // Save client-specific data in the "clients" collection with userId as a foreign key
+        await setDoc(doc(firestore, 'clients', clientId), {
+          userId: user.uid,  // Foreign key to userId
           name: name,
           createdAt: new Date(),
         });
+  
         navigation.navigate('RoleBasedNavigator'); // Replace with your role-based navigation
       } else {
         // Log the user in
@@ -48,6 +53,7 @@ const PasswordScreen = ({ route, navigation }) => {
       setIsLoading(false);
     }
   };
+  
 
   return (
     <View style={styles.container}>
