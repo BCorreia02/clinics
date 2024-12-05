@@ -25,7 +25,7 @@ import AppointmentDetailsScreen from './screens/Shared/AppointmentDetails';
 import LoadingScreen from './components/LoadingScreen';
 import ServiceManagementScreen from './screens/Admin/Services/ServiceManagement';
 import CreateServiceScreen from './screens/Admin/Services/CreateService';
-import CreateSpecialityScreen from './screens/Admin/Specialties/CreateSpecialty';
+import CreateSpecialityScreen from './screens/Admin/Services/CreateSpecialty';
 
 import NameScreen from './screens/Auth/Register/NameScreen';
 import EmailScreen from './screens/Auth/Register/EmailScreen';
@@ -76,7 +76,9 @@ export default function App() {
       console.error('Error signing out:', error);
     }
   };
+  
 
+  
   const ClientTabs = () => (
     <Tab.Navigator>
       <Tab.Screen
@@ -145,16 +147,58 @@ export default function App() {
     </Tab.Navigator>
   );
 
+  const AdminServiceStack = createStackNavigator();
+
+  const AdminServiceStackNavigator = () => (
+    <AdminServiceStack.Navigator>
+      <AdminServiceStack.Screen 
+        name="ServiceManagement" 
+        component={ServiceManagementScreen} 
+        options={{ title: "Service Management" }} 
+      />
+      <AdminServiceStack.Screen 
+        name="CreateService" 
+        component={CreateServiceScreen} 
+        options={{ title: "Create Service" }} 
+      />
+      <AdminServiceStack.Screen 
+        name="CreateSpecialty" 
+        component={CreateSpecialityScreen} 
+        options={{ title: "Create Specialty" }} 
+      />
+    </AdminServiceStack.Navigator>
+  );
+
+  const AdminUserManagementStack = createStackNavigator();
+
+  const AdminUserManagementStackNavigator = () => (
+    <AdminUserManagementStack.Navigator>
+      <AdminUserManagementStack.Screen 
+        name="UserManagement" 
+        component={UserManagementScreen} 
+        options={{ title: "User Management" }} 
+      />
+      <AdminUserManagementStack.Screen 
+        name="CreateDoctor" 
+        component={CreateDoctorScreen} 
+        options={{ title: "Create Doctor" }} 
+      />
+      <AdminUserManagementStack.Screen 
+        name="EditDoctor" 
+        component={EditDoctorScreen} 
+        options={{ title: "Edit Doctor" }} 
+      />
+    </AdminUserManagementStack.Navigator>
+  );
+
   const AdminTabs = () => (
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
-          display: 'flex', // By default, display the tab bar
+          display: 'flex', // Ensures the tab bar is always visible
         },
       }}
     >
-
-        
       <Tab.Screen
         name="AdminDashboard"
         options={{
@@ -163,54 +207,24 @@ export default function App() {
       >
         {(props) => <AdminDashboardScreen {...props} handleLogout={handleLogout} />}
       </Tab.Screen>
-   
+  
       <Tab.Screen
-        name="UserManagement"
-        component={UserManagementScreen}
+        name="UserManagementTab"
+        component={AdminUserManagementStackNavigator}
         options={{
           tabBarIcon: ({ color, size }) => <Icon name="users" color={color} size={size} />,
+          title: "Users",
         }}
       />
-      
+  
       <Tab.Screen
-        name="ServiceManagement"
-        component={ServiceManagementScreen}
+        name="ServiceManagementTab"
+        component={AdminServiceStackNavigator}
         options={{
           tabBarIcon: ({ color, size }) => <Icon name="cogs" color={color} size={size} />,
+          title: "Services",
         }}
       />
-
-      <Tab.Screen
-        name="CreateSpecialty"
-        component={CreateSpecialityScreen}
-        options={{
-          tabBarButton: () => null, // Hides from the tab bar
-        }}
-      />
-      <Tab.Screen
-        name="CreateService"
-        component={CreateServiceScreen}
-        options={{
-          tabBarButton: () => null, // Hides from the tab bar
-        }}
-      />
-
-      <Tab.Screen
-        name="CreateDoctor"
-        component={CreateDoctorScreen}
-        options={{
-          tabBarButton: () => null, // Hides from the tab bar
-        }}
-      />
-
-      <Tab.Screen
-        name="EditDoctor"
-        component={EditDoctorScreen}
-        options={{
-          tabBarButton: () => null, // Hides from the tab bar
-        }}
-      />
-
     </Tab.Navigator>
   );
 

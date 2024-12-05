@@ -59,7 +59,7 @@ const EditDoctor = ({ route, navigation }) => {
   const handleSave = async () => {
     try {
       await updateDoc(doc(firestore, 'doctors', doctorId), {
-        availableSlots: availability,
+        workHours: availability,
       });
       Alert.alert('Success', 'Availability updated successfully');
       navigation.goBack(); // Go back to the previous screen
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 16,
-    color: '#333',
+    color: '#000',
   },
   saveButton: {
     backgroundColor: '#000',

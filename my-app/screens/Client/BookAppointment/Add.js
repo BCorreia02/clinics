@@ -1,22 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, FlatList, Button } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+  Button,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { firestore } from '../../../firebaseConfig';
-import { collection, addDoc, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAuth } from "firebase/auth";
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const AddScreen = () => {
+  
   const [specialties, setSpecialties] = useState([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState(null);
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);
   const [appointmentTime, setAppointmentTime] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [availableDays, setAvailableDays] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -25,8 +37,8 @@ const AddScreen = () => {
   const fetchClientData = async (uid, field) => {
     try {
       const clientDoc = await getDoc(doc(firestore, 'clients', uid));
-      return clientDoc.exists() && clientDoc.data()[field] 
-        ? clientDoc.data()[field] 
+      return clientDoc.exists() && clientDoc.data()[field]
+        ? clientDoc.data()[field]
         : `Unknown ${field}`;
     } catch (error) {
       console.error(`Error fetching ${field} for UID:`, uid, error);
@@ -61,8 +73,7 @@ const AddScreen = () => {
 
   useEffect(() => {
     if (selectedService) {
-      fetchDoctors(selectedSpecialty.id);
-      resetState(['doctor', 'slots']);
+      fetchAvailableDaysForSpecialty(selectedSpecialty.id); // Call function when both are selected
     }
   }, [selectedService]);
 
@@ -73,7 +84,6 @@ const AddScreen = () => {
       setDoctors([]);
     }
     if (fields.includes('slots')) {
-      setAvailableSlots([]);
       setAppointmentTime('');
     }
   };
@@ -93,6 +103,13 @@ const AddScreen = () => {
     }
   };
 
+  const fetchAppointmentsForSpecialty = async (specialtyId) => {
+    const querySnapshot = await getDocs(
+      query(collection(firestore, "appointments"), where("specialtyId", "==", specialtyId))
+    );
+    return querySnapshot.docs.map((doc) => doc.data());
+  };
+
   const fetchDoctors = async (specialtyId) => {
     try {
       setLoading(true);
@@ -108,105 +125,135 @@ const AddScreen = () => {
     }
   };
 
-  const fetchAvailableSlots = async (doctorId) => {
+  const calculateDoctorAvailableSlots = (doctorWorkHours, bookedSlots) => {
+    const freeSlots = [];
+
+    doctorWorkHours.forEach(({ weekday, startTime, endTime }) => {
+      // Convert startTime and endTime to Date objects
+      const workStart = new Date(`1970-01-01T${startTime}:00`);
+      const workEnd = new Date(`1970-01-01T${endTime}:00`);
+
+      let currentSlot = new Date(workStart);
+
+      while (currentSlot < workEnd) {
+        const nextSlot = new Date(currentSlot);
+        nextSlot.setHours(currentSlot.getHours() + 1); // 1-hour slots
+
+        // Check if the current slot overlaps with any booked slots
+        const isBooked = bookedSlots.some(
+          (booked) =>
+            (currentSlot >= booked.startTime && currentSlot < booked.endTime) ||
+            (nextSlot > booked.startTime && nextSlot <= booked.endTime)
+        );
+
+        if (!isBooked) {
+          freeSlots.push({
+            startTime: currentSlot.toISOString(),
+            endTime: nextSlot.toISOString(),
+          });
+        }
+
+        currentSlot.setHours(currentSlot.getHours() + 1); // Move to next hour
+      }
+    });
+
+    return freeSlots;
+  };
+
+  const getClosestAvailableDays = (freeSlots) => {
+    const today = new Date();
+    const upcomingDaysCount = 7;
+    const availableDays = [];
+
+    freeSlots.forEach(({ startTime, endTime }) => {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      // Only include slots that are within the next 7 days
+      if (start >= today && start <= new Date(today.getTime() + upcomingDaysCount * 24 * 60 * 60 * 1000)) {
+        availableDays.push({
+          doctorId: "doctorId", // Replace with actual doctorId
+          startTime: start,
+          endTime: end,
+        });
+      }
+    });
+
+    return availableDays;
+  };
+
+  const fetchAvailableDaysForSpecialty = async (specialtyId) => {
     try {
       setLoading(true);
   
-      // Fetch the doctor's available slots
-      const doctorDoc = await getDoc(doc(firestore, "doctors", doctorId));
-      const availableSlots = doctorDoc.exists() ? doctorDoc.data().availableSlots || [] : [];
-      
-      // Fetch all appointments for the doctor to find booked slots
-      const appointments = await getDocs(collection(firestore, "appointments"));
-      const bookedSlots = appointments.docs
-        .filter(appointment => appointment.data().doctorId === doctorId)
-        .map(appointment => ({
-          startTime: new Date(appointment.data().startTime),
-          endTime: new Date(appointment.data().endTime),
-        }));
+      // Fetch all appointments and doctors
+      const appointments = await fetchAppointmentsForSpecialty(specialtyId);
+      const doctorsList = await fetchDoctors(specialtyId);
   
-      // Calculate the available slots for the nearest days
-      const freeSlotsByDay = calculateFreeSlotsForUpcomingDays(availableSlots, bookedSlots);
-      setAvailableSlots(freeSlotsByDay);
+      if (!doctorsList || doctorsList.length === 0) {
+        console.warn("No doctors found for this specialty.");
+        setAvailableDays([]); // Explicitly clear state if no doctors
+        return;
+      }
+  
+      // Process booked slots
+      const bookedSlots = appointments.map((appointment) => ({
+        startTime: new Date(appointment.startTime),
+        endTime: new Date(appointment.endTime),
+      }));
+  
+      // Calculate available slots for each doctor
+      const freeSlots = doctorsList.flatMap((doctor) =>
+        calculateDoctorAvailableSlots(doctor.workHours, bookedSlots)
+      );
+  
+      const closestAvailableDays = getClosestAvailableDays(freeSlots);
+      setAvailableDays(closestAvailableDays);
+  
     } catch (error) {
-      console.error("Error fetching available slots:", error);
+      console.error("Error fetching available days:", error);
+      setAvailableDays([]); // Handle errors gracefully
     } finally {
       setLoading(false);
     }
   };
   
 
-  const calculateFreeSlotsForUpcomingDays = (availableSlots, bookedSlots) => {
-    const freeSlotsByDay = {};
-    const currentDate = new Date();
-    const upcomingDaysCount = 7; // Number of upcoming days to check (You can adjust this)
-  
-    const parseTime = (time) => {
-      const [hours, minutes, period] = time.match(/(\d+):(\d+)\s*(AM|PM)/).slice(1);
-      const hour = period === "PM" && hours !== "12" ? parseInt(hours) + 12 : parseInt(hours);
-      return { hour, minutes: parseInt(minutes) };
-    };
-  
-    // Loop through the upcoming days (from today onward)
-    for (let i = 0; i < upcomingDaysCount; i++) {
-      const day = new Date(currentDate);
-      day.setDate(currentDate.getDate() + i); // Move to the next day
-  
-      const formattedDay = day.toLocaleDateString([], { weekday: 'long' }); // Get day name (e.g., "Monday")
-  
-      availableSlots.forEach(({ day: slotDay, startTime, endTime }) => {
-        if (slotDay === formattedDay) {
-          const start = new Date(day);
-          const end = new Date(day);
-  
-          const { hour: startHour, minutes: startMinutes } = parseTime(startTime);
-          const { hour: endHour, minutes: endMinutes } = parseTime(endTime);
-  
-          start.setHours(startHour, startMinutes, 0, 0);
-          end.setHours(endHour, endMinutes, 0, 0);
-  
-          let current = new Date(start);
-  
-          // Check for available slots and ensure no overlaps with booked slots
-          while (current < end) {
-            const slotEnd = new Date(current);
-            slotEnd.setHours(current.getHours() + 1);
-  
-            const isBooked = bookedSlots.some(
-              (booked) =>
-                (current >= booked.startTime && current < booked.endTime) ||
-                (slotEnd > booked.startTime && slotEnd <= booked.endTime)
-            );
-  
-            if (!isBooked) {
-              if (!freeSlotsByDay[formattedDay]) freeSlotsByDay[formattedDay] = [];
-              freeSlotsByDay[formattedDay].push({
-                startTime: current.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                endTime: slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              });
-            }
-  
-            current.setHours(current.getHours() + 1);
-          }
-        }
-      });
-    }
-  
-    return freeSlotsByDay;
-  };
-  
+  const AvailableDays = ({ days, onSelect }) => (
+    <View style={styles.listContainer}>
+      <Text style={styles.sectionTitle}>Select a Day:</Text>
+      <FlatList
+        data={days}
+        keyExtractor={(item) => item.day}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedDate(item.date); // Store the selected date
+              onSelect(item);
+            }}
+            style={styles.listItem}
+          >
+            <Text style={styles.listItemText}>{item.day}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
 
   const bookAppointment = async () => {
-    if (!appointmentTime) return alert('Please select an appointment time!');
-    
+    if (!appointmentTime || !selectedDay) return alert('Please select an appointment time!');
+
     try {
       const clientName = await fetchClientData(user.uid, 'name');
       const clientId = await fetchClientData(user.uid, 'userId');
       if (!clientName || !clientId) return alert('Client information is missing!');
 
-      const appointmentDateTime = new Date(selectedDate);
+      const selectedDateTime = new Date(selectedDate);
       const [hours, minutes] = appointmentTime.split(':');
-      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
+      selectedDateTime.setHours(parseInt(hours), parseInt(minutes));
+
+      const appointmentEndTime = new Date(selectedDateTime);
+      appointmentEndTime.setHours(appointmentEndTime.getHours() + 1); // Assuming 1-hour slots
 
       const newAppointment = {
         specialtyId: selectedSpecialty.id,
@@ -217,38 +264,25 @@ const AddScreen = () => {
         doctorName: selectedDoctor.name,
         clientId,
         clientName,
-        createdAt: new Date().toISOString(),
-        time: appointmentDateTime.toISOString(), // Use combined date and time
-        status: 'pending',
+        startTime: selectedDateTime,
+        endTime: appointmentEndTime,
       };
 
       await addDoc(collection(firestore, 'appointments'), newAppointment);
       alert('Appointment booked successfully!');
-      resetState(['service', 'doctor', 'slots']);
     } catch (error) {
       console.error('Error booking appointment:', error);
     }
   };
-
   const handleBack = () => {
-    if (selectedDoctor) {
-      setSelectedDoctor(null);
-      setAvailableSlots([]);
-      setAppointmentTime('');
+    if (selectedDay) {
+      setSelectedDay(null);
     } else if (selectedService) {
       setSelectedService(null);
-      setDoctors([]);
-      setAvailableSlots([]);
-      setAppointmentTime('');
     } else if (selectedSpecialty) {
       setSelectedSpecialty(null);
-      setServices([]);
-      setDoctors([]);
-      setAvailableSlots([]);
-      setAppointmentTime('');
     }
   };
-  
 
   const SelectionList = ({ data, title, onSelect }) => (
     <View style={styles.listContainer}>
@@ -261,189 +295,170 @@ const AddScreen = () => {
             onPress={() => onSelect(item)}
             style={styles.listItem}
           >
-            <Text style={styles.listItemText}>{item.name}</Text>
+          <Text style={styles.listItemText}>{item.name}</Text>
           </TouchableOpacity>
         )}
       />
     </View>
   );
-  
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Book an Appointment</Text>
-        {selectedSpecialty && (
-         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Icon name="arrow-left" size={20} color="black" />
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
+        {(selectedSpecialty || selectedService || selectedDay) && (
+          <TouchableOpacity onPress={handleBack}>
+            <Icon name="arrow-left" size={24} color="black" />
+          </TouchableOpacity>
         )}
       </View>
 
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : (
-        <>
-          {!selectedSpecialty && (
-            <SelectionList
-              data={specialties}
-              title="Select a Specialty:"
-              onSelect={setSelectedSpecialty}
-            />
+      {/* Step 1: Select a Specialty */}
+      {!selectedSpecialty && (
+        <FlatList
+          data={specialties}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listItem}
+              onPress={() => setSelectedSpecialty(item)}
+            >
+              <Text style={styles.listItemText}>{item.name}</Text>
+            </TouchableOpacity>
           )}
-          {selectedSpecialty && !selectedService && (
-            <SelectionList
-              data={services}
-              title={`Select a Service in ${selectedSpecialty.name}:`}
-              onSelect={setSelectedService}
-            />
-          )}
-          {selectedService && !selectedDoctor && (
-            <SelectionList
-              data={doctors}
-              title="Select a Doctor:"
-              onSelect={(doctor) => {
-                setSelectedDoctor(doctor);
-                fetchAvailableSlots(doctor.id);
-              }}
-            />
-          )}
-          {selectedDoctor && Object.keys(availableSlots).length > 0 ? (
-            <>
-            <Text style={styles.sectionTitle}>Available Slots</Text>
-            <ScrollView style={styles.slotContainer}>
-              {Object.keys(availableSlots).map((day) => (
-                <View key={day} style={styles.dayContainer}>
-                  <Text style={styles.dayTitle}>{day}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {availableSlots[day].map((slot, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => setAppointmentTime(slot.startTime)}
-                        style={[
-                          styles.slot,
-                          appointmentTime === slot.startTime && styles.selectedSlot, // Highlight selected slot
-                        ]}
-                      >
-                        <Text style={styles.slotText}>
-                          {slot.startTime} - {slot.endTime}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              ))}
-            </ScrollView>
-          </>
-    ) : (
-      <Text style={styles.noSlotsText}>
-        No available slots for the selected doctor. Please select another doctor or try again later.
-      </Text>
-    )}
-          {appointmentTime && (
-            <Button title="Confirm Appointment" onPress={bookAppointment} />
-          )}
-        </>
+          ListHeaderComponent={
+            <Text style={styles.sectionTitle}>Select a Specialty</Text>
+          }
+        />
       )}
-    </View>
+
+      {/* Step 2: Select a Service */}
+      {selectedSpecialty && !selectedService && (
+        <FlatList
+          data={services}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listItem}
+              onPress={() => setSelectedService(item)}
+            >
+              <Text style={styles.listItemText}>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+          ListHeaderComponent={
+            <Text style={styles.sectionTitle}>
+              Select a Service for {selectedSpecialty.name}
+            </Text>
+          }
+        />
+      )}
+
+      {/* Step 3: View Available Days */}
+      {selectedSpecialty && selectedService && !selectedDay && (
+        <FlatList
+          data={availableDays} // Fetch or set dynamically
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listItem}
+              onPress={() => setSelectedDay(item)}
+            >
+              <Text style={styles.listItemText}>{item}</Text>
+            </TouchableOpacity>
+          )}
+          ListHeaderComponent={
+            <Text style={styles.sectionTitle}>
+              Select a Day for {selectedService.name}
+            </Text>
+          }
+        />
+      )}
+
+      {/* Step 4: Select an Appointment Slot */}
+      {selectedDay && !appointmentTime && (
+        <FlatList
+          data={[
+            { id: 1, time: '10:00 AM' },
+            { id: 2, time: '11:00 AM' },
+            { id: 3, time: '2:00 PM' },
+          ]} // Sample slots; replace with real data
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listItem}
+              onPress={() => setAppointmentTime(item.time)}
+            >
+              <Text style={styles.listItemText}>{item.time}</Text>
+            </TouchableOpacity>
+          )}
+          ListHeaderComponent={
+            <Text style={styles.sectionTitle}>Select a Time Slot</Text>
+          }
+        />
+      )}
+
+      {/* Step 5: Confirm and Book Appointment */}
+      {appointmentTime && (
+        <View style={styles.actionContainer}>
+          <Text style={styles.selectedTime}>
+            Selected Time: {appointmentTime}
+          </Text>
+          <Button
+            title="Book Appointment"
+            onPress={bookAppointment}
+            color="green"
+          />
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    marginLeft: 5,
-    color: '#000',
-    fontSize: 16,
-  },
-  listContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#000',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   listItem: {
-    padding: 15,
-    borderRadius: 10,
     backgroundColor: '#fff',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#000',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   listItemText: {
-    fontSize: 18,
-    color: '#333',
-  },
-  slotContainer: {
-    marginVertical: 10,
-  },
-  dayContainer: {
-    marginBottom: 20,
-  },
-  dayTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 5,
-    color: '#000',
-  },
-  slot: {
-    padding: 15,
-    marginRight: 10,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  selectedSlot: {
-    backgroundColor: '#fff',
-    borderColor: '#0056b3',
-  },
-  slotText: {
-    color: '#333',
     fontSize: 16,
   },
-  noSlotsText: {
+  actionContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  selectedTime: {
     fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  dateContainer: {
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  dateButton: {
-    padding: 10,
-    backgroundColor: '#ddd',
-    borderRadius: 10,
-    width: 200,
-    alignItems: 'center',
-  },
-  dateButtonText: {
-    fontSize: 18,
-    color: '#333',
+    marginBottom: 8,
+    fontWeight: 'bold',
   },
 });
 
