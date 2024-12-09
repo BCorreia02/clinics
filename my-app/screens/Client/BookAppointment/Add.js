@@ -90,18 +90,26 @@ const AddScreen = () => {
 
   const fetchServices = async (specialtyId) => {
     try {
+      console.log("Fetching services for specialty ID:", specialtyId);
       setLoading(true);
       const querySnapshot = await getDocs(collection(firestore, 'services'));
       const servicesList = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(service => service.specialtyId === specialtyId);
+  
+      console.log("Services found:", servicesList);
+      if (servicesList.length === 0) {
+        console.warn("No services found for this specialty:", specialtyId);
+      }
+  
       setServices(servicesList);
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error("Error fetching services:", error);
     } finally {
       setLoading(false);
     }
   };
+  
 
   const fetchAppointmentsForSpecialty = async (specialtyId) => {
     const querySnapshot = await getDocs(
@@ -112,78 +120,109 @@ const AddScreen = () => {
 
   const fetchDoctors = async (specialtyId) => {
     try {
-      setLoading(true);
       const querySnapshot = await getDocs(collection(firestore, 'doctors'));
-      const doctorsList = querySnapshot.docs
+      return querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(doctor => doctor.specialtyId === specialtyId);
-      setDoctors(doctorsList);
     } catch (error) {
-      console.error('Error fetching doctors:', error);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching doctors:", error);
+      return [];
     }
   };
 
-  const calculateDoctorAvailableSlots = (doctorWorkHours, bookedSlots) => {
+  const calculateDoctorAvailableSlots = (doctorWorkHours, bookedSlots, doctorId) => {
     const freeSlots = [];
-
-    doctorWorkHours.forEach(({ weekday, startTime, endTime }) => {
-      // Convert startTime and endTime to Date objects
+    
+    // Get today's weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const today = new Date();
+    const todayWeekday = today.getDay();
+  
+    doctorWorkHours.forEach(({ day, startTime, endTime }) => {
+      // Skip if the doctor's working day doesn't match today's weekday
+      if (day === "Sunday" && todayWeekday !== 0) return; // Handle Sunday
+      if (day === "Monday" && todayWeekday !== 1) return; // Handle Monday
+      if (day === "Tuesday" && todayWeekday !== 2) return; // Handle Tuesday
+      if (day === "Wednesday" && todayWeekday !== 3) return; // Handle Wednesday
+      if (day === "Thursday" && todayWeekday !== 4) return; // Handle Thursday
+      if (day === "Friday" && todayWeekday !== 5) return; // Handle Friday
+      if (day === "Saturday" && todayWeekday !== 6) return; // Handle Saturday
+  
+      // Convert startTime and endTime to Date objects (with dummy date for comparison)
       const workStart = new Date(`1970-01-01T${startTime}:00`);
       const workEnd = new Date(`1970-01-01T${endTime}:00`);
-
+  
       let currentSlot = new Date(workStart);
-
+  
+      // Log work hours for debugging
+      console.log(`Checking availability for ${day}:`, { workStart, workEnd });
+  
+      // Check for available slots within the doctor's working hours
       while (currentSlot < workEnd) {
         const nextSlot = new Date(currentSlot);
         nextSlot.setHours(currentSlot.getHours() + 1); // 1-hour slots
-
+  
+        // Log the slots for debugging
+        console.log("Current Slot:", currentSlot);
+        console.log("Next Slot:", nextSlot);
+  
         // Check if the current slot overlaps with any booked slots
         const isBooked = bookedSlots.some(
           (booked) =>
             (currentSlot >= booked.startTime && currentSlot < booked.endTime) ||
             (nextSlot > booked.startTime && nextSlot <= booked.endTime)
         );
-
+  
         if (!isBooked) {
           freeSlots.push({
+            doctorId, // Add doctorId to each free slot
             startTime: currentSlot.toISOString(),
             endTime: nextSlot.toISOString(),
           });
         }
-
-        currentSlot.setHours(currentSlot.getHours() + 1); // Move to next hour
+  
+        // Move to the next hour
+        currentSlot.setHours(currentSlot.getHours() + 1);
       }
     });
-
+  
+    console.log("Free Slots Calculated:", freeSlots);
     return freeSlots;
-  };
+};
 
-  const getClosestAvailableDays = (freeSlots) => {
-    const today = new Date();
-    const upcomingDaysCount = 7;
-    const availableDays = [];
+  
+  
+const getClosestAvailableDays = (freeSlots) => {
+  const today = new Date();
+  const upcomingDaysCount = 7;
+  const availableDays = [];
 
-    freeSlots.forEach(({ startTime, endTime }) => {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
+  // Create a new date object for today's date, resetting the time portion to midnight (UTC)
+  const todayMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
 
-      // Only include slots that are within the next 7 days
-      if (start >= today && start <= new Date(today.getTime() + upcomingDaysCount * 24 * 60 * 60 * 1000)) {
-        availableDays.push({
-          doctorId: "doctorId", // Replace with actual doctorId
-          startTime: start,
-          endTime: end,
-        });
-      }
-    });
+  // Calculate the end of the upcoming 7 days (in UTC)
+  const sevenDaysLater = new Date(todayMidnight.getTime() + upcomingDaysCount * 24 * 60 * 60 * 1000);
 
-    return availableDays;
-  };
+  freeSlots.forEach(({ doctorId, startTime, endTime }) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // Only include slots that are within the next 7 days in UTC
+    if (start >= todayMidnight && start < sevenDaysLater) {
+      availableDays.push({
+        doctorId, // Keep the doctorId from freeSlots
+        startTime: start.toISOString(), // Ensure the startTime is in ISO string format
+        endTime: end.toISOString(), // Ensure the endTime is in ISO string format
+      });
+    }
+  });
+
+  return availableDays;
+};
+
 
   const fetchAvailableDaysForSpecialty = async (specialtyId) => {
     try {
+      console.log("Fetching available days for specialty ID:", specialtyId);
       setLoading(true);
   
       // Fetch all appointments and doctors
@@ -191,10 +230,13 @@ const AddScreen = () => {
       const doctorsList = await fetchDoctors(specialtyId);
   
       if (!doctorsList || doctorsList.length === 0) {
-        console.warn("No doctors found for this specialty.");
+        console.warn("No doctors found for this specialty:", specialtyId);
         setAvailableDays([]); // Explicitly clear state if no doctors
         return;
       }
+  
+      console.log("Doctors list for available days calculation:", doctorsList);
+      console.log("Appointments fetched:", appointments);
   
       // Process booked slots
       const bookedSlots = appointments.map((appointment) => ({
@@ -202,13 +244,19 @@ const AddScreen = () => {
         endTime: new Date(appointment.endTime),
       }));
   
+      console.log("Booked slots:", bookedSlots);
+  
       // Calculate available slots for each doctor
       const freeSlots = doctorsList.flatMap((doctor) =>
-        calculateDoctorAvailableSlots(doctor.workHours, bookedSlots)
+        calculateDoctorAvailableSlots(doctor.workHours, bookedSlots, doctor.id)
       );
+  
+      console.log("Free slots calculated:", freeSlots);
   
       const closestAvailableDays = getClosestAvailableDays(freeSlots);
       setAvailableDays(closestAvailableDays);
+  
+      console.log("Closest available days:", closestAvailableDays);
   
     } catch (error) {
       console.error("Error fetching available days:", error);
@@ -217,6 +265,7 @@ const AddScreen = () => {
       setLoading(false);
     }
   };
+  
   
 
   const AvailableDays = ({ days, onSelect }) => (
