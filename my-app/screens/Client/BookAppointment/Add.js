@@ -184,8 +184,6 @@ const AddScreen = () => {
         currentSlot.setHours(currentSlot.getHours() + 1);
       }
     });
-  
-    console.log("Free Slots Calculated:", freeSlots);
     return freeSlots;
 };
 
@@ -202,19 +200,35 @@ const getClosestAvailableDays = (freeSlots) => {
   // Calculate the end of the upcoming 7 days (in UTC)
   const sevenDaysLater = new Date(todayMidnight.getTime() + upcomingDaysCount * 24 * 60 * 60 * 1000);
 
+  console.log('Today midnight:', todayMidnight);
+  console.log('Seven days later:', sevenDaysLater);
+
   freeSlots.forEach(({ doctorId, startTime, endTime }) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
 
+    // Adjust the date of the slot to the correct one if missing
+    const correctedStart = new Date(start);
+    correctedStart.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()); // Set the current date
+
+    const correctedEnd = new Date(end);
+    correctedEnd.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()); // Set the current date
+
+    console.log('Slot:', { doctorId, startTime, endTime });
+    console.log('Corrected start:', correctedStart);
+    console.log('Corrected end:', correctedEnd);
+
     // Only include slots that are within the next 7 days in UTC
-    if (start >= todayMidnight && start < sevenDaysLater) {
+    if (correctedStart >= todayMidnight && correctedStart < sevenDaysLater) {
       availableDays.push({
-        doctorId, // Keep the doctorId from freeSlots
-        startTime: start.toISOString(), // Ensure the startTime is in ISO string format
-        endTime: end.toISOString(), // Ensure the endTime is in ISO string format
+        doctorId,
+        startTime: correctedStart.toISOString(),
+        endTime: correctedEnd.toISOString(),
       });
     }
   });
+
+  console.log('Available days:', availableDays);
 
   return availableDays;
 };
@@ -251,11 +265,9 @@ const getClosestAvailableDays = (freeSlots) => {
         calculateDoctorAvailableSlots(doctor.workHours, bookedSlots, doctor.id)
       );
   
-      console.log("Free slots calculated:", freeSlots);
-  
       const closestAvailableDays = getClosestAvailableDays(freeSlots);
       setAvailableDays(closestAvailableDays);
-  
+   
       console.log("Closest available days:", closestAvailableDays);
   
     } catch (error) {
@@ -364,7 +376,7 @@ const getClosestAvailableDays = (freeSlots) => {
           </TouchableOpacity>
         )}
       </View>
-
+  
       {/* Step 1: Select a Specialty */}
       {!selectedSpecialty && (
         <FlatList
@@ -383,7 +395,7 @@ const getClosestAvailableDays = (freeSlots) => {
           }
         />
       )}
-
+  
       {/* Step 2: Select a Service */}
       {selectedSpecialty && !selectedService && (
         <FlatList
@@ -404,18 +416,21 @@ const getClosestAvailableDays = (freeSlots) => {
           }
         />
       )}
-
+  
       {/* Step 3: View Available Days */}
       {selectedSpecialty && selectedService && !selectedDay && (
         <FlatList
-          data={availableDays} // Fetch or set dynamically
-          keyExtractor={(item, index) => index.toString()}
+          data={availableDays} // Make sure availableDays is an array of strings or a format that works with FlatList
+          keyExtractor={(item, index) => index.toString()} // Adjusted to use the index as a key
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.listItem}
               onPress={() => setSelectedDay(item)}
             >
-              <Text style={styles.listItemText}>{item}</Text>
+              <Text style={styles.listItemText}>
+                {/* Display day name, for example */}
+                {new Date(item.startTime).toLocaleDateString()} 
+              </Text>
             </TouchableOpacity>
           )}
           ListHeaderComponent={
@@ -425,15 +440,15 @@ const getClosestAvailableDays = (freeSlots) => {
           }
         />
       )}
-
+  
       {/* Step 4: Select an Appointment Slot */}
       {selectedDay && !appointmentTime && (
         <FlatList
-          data={[
+          data={[ // Sample slots, adjust with actual data
             { id: 1, time: '10:00 AM' },
             { id: 2, time: '11:00 AM' },
             { id: 3, time: '2:00 PM' },
-          ]} // Sample slots; replace with real data
+          ]}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -448,7 +463,7 @@ const getClosestAvailableDays = (freeSlots) => {
           }
         />
       )}
-
+  
       {/* Step 5: Confirm and Book Appointment */}
       {appointmentTime && (
         <View style={styles.actionContainer}>
@@ -465,6 +480,8 @@ const getClosestAvailableDays = (freeSlots) => {
     </KeyboardAvoidingView>
   );
 };
+
+  
 
 const styles = StyleSheet.create({
   container: {
