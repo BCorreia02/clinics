@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert, TouchableOpacity } from 'react-native';
+import { View, TextInput, Button, StyleSheet, Text, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { firestore } from '../../../firebaseConfig';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -15,16 +15,13 @@ const EmailScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      // Query Firestore to check if the email exists in the 'users' collection
       const usersRef = collection(firestore, 'users');
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        // Email exists -> Navigate to PasswordScreen
         navigation.navigate('Password', { email });
       } else {
-        // Email does not exist -> Navigate to NameScreen
         navigation.navigate('Name', { email });
       }
     } catch (error) {
@@ -35,26 +32,29 @@ const EmailScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-        <Text style={styles.title}>What's your email address?</Text>
-        <TextInput
-            style={styles.input}
-            value={email}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            onChangeText={setEmail}
-            keyboardType="email-address"
-        />
-        <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonLoading]}
-            onPress={handleNext}
-            disabled={isLoading}
-        >
-            <Text style={styles.buttonText}>
-            {isLoading ? 'Checking...' : 'Next'}
-            </Text>
-        </TouchableOpacity>
-    </View>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <Text style={styles.title}>What's your email address?</Text>
+      <TextInput
+        style={styles.input}
+        value={email}
+        placeholder="Email"
+        placeholderTextColor="#aaa"
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonLoading]}
+        onPress={handleNext}
+        disabled={isLoading}
+      >
+        <Text style={styles.buttonText}>
+          {isLoading ? 'Checking...' : 'Next'}
+        </Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -64,12 +64,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff', // White background
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#000', // Black text
+    color: '#000',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -79,11 +79,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     borderBottomWidth: 1,
-    borderBottomColor: '#000', // Blue underline
-    marginBottom: 40, // Spacing between input and button
+    borderBottomColor: '#000',
+    marginBottom: 40,
   },
   button: {
-    backgroundColor: '#000', // Blue button for the next action
+    backgroundColor: '#000',
     paddingVertical: 12,
     paddingHorizontal: 50,
     borderRadius: 25,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buttonLoading: {
-    backgroundColor: '#000', // Lighter blue when loading
+    backgroundColor: '#000',
   },
 });
 

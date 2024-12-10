@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Text, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Text, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 
 const NameScreen = ({ navigation, route }) => {
   const [name, setName] = useState('');
@@ -14,7 +14,10 @@ const NameScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <Text style={styles.title}>What's your name?</Text>
       <TextInput
         style={styles.input}
@@ -26,7 +29,7 @@ const NameScreen = ({ navigation, route }) => {
       <TouchableOpacity style={styles.button} onPress={handleNext}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -36,12 +39,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff', // White background
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#000', // Black text for the title
+    color: '#000',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -51,11 +54,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     borderBottomWidth: 1,
-    borderBottomColor: '#000', // Blue underline
-    marginBottom: 40, // Spacing between input and button
+    borderBottomColor: '#000',
+    marginBottom: 40,
   },
   button: {
-    backgroundColor: '#000', // Blue button for the next action
+    backgroundColor: '#000',
     paddingVertical: 12,
     paddingHorizontal: 50,
     borderRadius: 25,

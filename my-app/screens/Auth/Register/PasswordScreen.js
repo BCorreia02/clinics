@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, Text, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebaseConfig';
@@ -19,11 +19,9 @@ const PasswordScreen = ({ route, navigation }) => {
     try {
       let user;
       if (name) {
-        // Register the user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         user = userCredential.user;
   
-        // Save user data in the "users" collection
         await setDoc(doc(firestore, 'users', user.uid), {
           name,
           email,
@@ -31,21 +29,18 @@ const PasswordScreen = ({ route, navigation }) => {
           profileImage: '',
         });
   
-        // Create a separate clientId for the clients collection
-        const clientId = doc(firestore, 'clients').id; // Generate unique client ID
+        const clientId = doc(firestore, 'clients').id;
   
-        // Save client-specific data in the "clients" collection with userId as a foreign key
         await setDoc(doc(firestore, 'clients', clientId), {
-          userId: user.uid,  // Foreign key to userId
+          userId: user.uid,
           name: name,
           createdAt: new Date(),
         });
   
-        navigation.navigate('RoleBasedNavigator'); // Replace with your role-based navigation
+        navigation.navigate('RoleBasedNavigator');
       } else {
-        // Log the user in
         await signInWithEmailAndPassword(auth, email, password);
-        navigation.navigate('RoleBasedNavigator'); // Replace with your role-based navigation
+        navigation.navigate('RoleBasedNavigator');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -53,10 +48,12 @@ const PasswordScreen = ({ route, navigation }) => {
       setIsLoading(false);
     }
   };
-  
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <Text style={styles.title}>
         {name ? 'Create a Password' : 'Enter Your Password'}
       </Text>
@@ -77,7 +74,7 @@ const PasswordScreen = ({ route, navigation }) => {
           {isLoading ? (name ? 'Registering...' : 'Logging in...') : (name ? 'Register' : 'Login')}
         </Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -87,12 +84,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff', // White background
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#000', // Black text
+    color: '#000',
     marginBottom: 20,
     textAlign: 'left',
   },
@@ -102,11 +99,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     borderBottomWidth: 1,
-    borderBottomColor: '#000', // Blue underline
-    marginBottom: 40, // Spacing between input and button
+    borderBottomColor: '#000',
+    marginBottom: 40,
   },
   button: {
-    backgroundColor: '#000', // Blue button for the next action
+    backgroundColor: '#000',
     paddingVertical: 12,
     paddingHorizontal: 50,
     borderRadius: 25,
@@ -119,7 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buttonLoading: {
-    backgroundColor: '#000', // Lighter blue when loading
+    backgroundColor: '#000',
   },
 });
 
