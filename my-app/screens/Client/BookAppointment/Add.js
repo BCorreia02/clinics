@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
-  ScrollView,
   Button,
   KeyboardAvoidingView,
   Platform,
@@ -14,13 +13,13 @@ import { firestore } from '../../../firebaseConfig';
 import { collection, addDoc, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAuth } from "firebase/auth";
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 const AddScreen = () => {
   
   const [specialties, setSpecialties] = useState([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState(null);
   const [services, setServices] = useState([]);
+  const [filteredServices, setFilteredServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -29,7 +28,7 @@ const AddScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [availableDays, setAvailableDays] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);  // Add this state initialization
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -62,27 +61,44 @@ const AddScreen = () => {
         setLoading(false);
       }
     };
+    const fetchAllServices = async () => {
+      try {
+        setLoading(true);
+        const querySnapshot = await getDocs(collection(firestore, 'services'));
+        const servicesList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setServices(servicesList);
+        setFilteredServices(servicesList);
+      } catch (error) {
+        console.error("Error fetching services:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchSpecialties();
+    fetchAllServices();
   }, []);
 
   useEffect(() => {
     if (selectedSpecialty) {
-      fetchServices(selectedSpecialty.id);
-      resetState(['service', 'doctor', 'slots']);
+      const filtered = services.filter(service => service.specialtyId === selectedSpecialty.id);
+      setFilteredServices(filtered);
+    } else {
+      setFilteredServices(services);
     }
-  }, [selectedSpecialty]);
+  }, [selectedSpecialty, services]);
 
   useEffect(() => {
     if (selectedService) {
-      fetchAvailableDaysForSpecialty(selectedSpecialty.id); // Call function when both are selected
+      fetchAvailableDaysForSpecialty(selectedSpecialty.id);
     }
   }, [selectedService]);
 
   useEffect(() => {
     if (selectedDay) {
-      console.log("Selected Day:", selectedDay); // Debugging
-      const slotsForDay = fetchAvailableSlotsForDay(selectedDay.date);
-      console.log("Slots for Selected Day:", slotsForDay); // Debugging
+      const slotsForDay = fetchAvailableSlotsForDay(selectedDay);
       setAvailableSlots(slotsForDay);
     }
   }, [selectedDay]);
@@ -99,45 +115,23 @@ const AddScreen = () => {
     }
   };
 
-  const fetchServices = async (specialtyId) => {
-    try {
-      console.log("Fetching services for specialty ID:", specialtyId);
-      setLoading(true);
-      const querySnapshot = await getDocs(collection(firestore, 'services'));
-      const servicesList = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(service => service.specialtyId === specialtyId);
-  
-      console.log("Services found:", servicesList);
-      if (servicesList.length === 0) {
-        console.warn("No services found for this specialty:", specialtyId);
-      }
-  
-      setServices(servicesList);
-    } catch (error) {
-      console.error("Error fetching services:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchAvailableSlotsForDay = (selectedDay) => {
-    console.log("Selected day:", selectedDay);
-    console.log("Available days start times:", availableDays.map((slot) => slot.startTime));
-  
-    const daySlots = availableDays.filter(
-      (slot) => new Date(slot.startTime).toLocaleDateString() === new Date(selectedDay).toLocaleDateString()
+    const selectedDate = new Date(selectedDay.date);
+
+    const daySlots = availableDays.find((day) => 
+      new Date(day.date).toLocaleDateString() === selectedDate.toLocaleDateString()
     );
-  
-    console.log("Day slots:", daySlots);
-  
-    return daySlots.map((slot) => ({
-      id: slot.startTime, // Ensure each slot has a unique identifier
-      time: new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      available: true, // You can modify this logic to account for availability
-    }));
+
+    if (daySlots) {
+      return daySlots.slots.map((slot) => ({
+        id: slot.startTime,
+        time: new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        available: true,
+      }));
+    }
+
+    return [];
   };
-  
 
   const fetchAppointmentsForSpecialty = async (specialtyId) => {
     const querySnapshot = await getDocs(
@@ -160,55 +154,45 @@ const AddScreen = () => {
 
   const calculateDoctorAvailableSlots = (doctorWorkHours, bookedSlots, doctorId) => {
     const freeSlots = [];
-    
-    // Get today's weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
     const today = new Date();
     const todayWeekday = today.getDay();
-  
+
     doctorWorkHours.forEach(({ day, startTime, endTime }) => {
-      // Skip if the doctor's working day doesn't match today's weekday
-      if (day === "Sunday" && todayWeekday !== 0) return; // Handle Sunday
-      if (day === "Monday" && todayWeekday !== 1) return; // Handle Monday
-      if (day === "Tuesday" && todayWeekday !== 2) return; // Handle Tuesday
-      if (day === "Wednesday" && todayWeekday !== 3) return; // Handle Wednesday
-      if (day === "Thursday" && todayWeekday !== 4) return; // Handle Thursday
-      if (day === "Friday" && todayWeekday !== 5) return; // Handle Friday
-      if (day === "Saturday" && todayWeekday !== 6) return; // Handle Saturday
-  
-      // Convert startTime and endTime to Date objects (with dummy date for comparison)
+      if (day === "Sunday" && todayWeekday !== 0) return;
+      if (day === "Monday" && todayWeekday !== 1) return;
+      if (day === "Tuesday" && todayWeekday !== 2) return;
+      if (day === "Wednesday" && todayWeekday !== 3) return;
+      if (day === "Thursday" && todayWeekday !== 4) return;
+      if (day === "Friday" && todayWeekday !== 5) return;
+      if (day === "Saturday" && todayWeekday !== 6) return;
+
       const workStart = new Date(`1970-01-01T${startTime}:00`);
       const workEnd = new Date(`1970-01-01T${endTime}:00`);
-  
       let currentSlot = new Date(workStart);
-  
-  
-      // Check for available slots within the doctor's working hours
+
       while (currentSlot < workEnd) {
         const nextSlot = new Date(currentSlot);
-        nextSlot.setHours(currentSlot.getHours() + 1); // 1-hour slots
-  
-        // Check if the current slot overlaps with any booked slots
+        nextSlot.setHours(currentSlot.getHours() + 1);
+
         const isBooked = bookedSlots.some(
           (booked) =>
             (currentSlot >= booked.startTime && currentSlot < booked.endTime) ||
             (nextSlot > booked.startTime && nextSlot <= booked.endTime)
         );
-  
+
         if (!isBooked) {
           freeSlots.push({
-            doctorId, // Add doctorId to each free slot
+            doctorId,
             startTime: currentSlot.toISOString(),
             endTime: nextSlot.toISOString(),
           });
         }
-  
-        // Move to the next hour
+
         currentSlot.setHours(currentSlot.getHours() + 1);
       }
     });
     return freeSlots;
 };
-
 
 const fetchAvailableDaysForSpecialty = async (specialtyId) => {
   try {
@@ -265,7 +249,7 @@ const bookAppointment = async () => {
     selectedDateTime.setHours(parseInt(hours), parseInt(minutes));
 
     const appointmentEndTime = new Date(selectedDateTime);
-    appointmentEndTime.setHours(appointmentEndTime.getHours() + 1); // Assuming 1-hour slots
+    appointmentEndTime.setHours(appointmentEndTime.getHours() + 1);
 
     const newAppointment = {
       specialtyId: selectedSpecialty.id,
@@ -286,6 +270,7 @@ const bookAppointment = async () => {
     console.error('Error booking appointment:', error);
   }
 };
+
 const handleBack = () => {
   if (selectedDay) {
     setSelectedDay(null);
@@ -296,18 +281,12 @@ const handleBack = () => {
   }
 };
 
-const parseTime = (timeString) => {
-  const date = new Date(timeString);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
 return (
   <KeyboardAvoidingView
     style={styles.container}
     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
   >
     <View style={styles.header}>
-      <Text style={styles.title}>Book an Appointment</Text>
       {(selectedSpecialty || selectedService || selectedDay) && (
         <TouchableOpacity onPress={handleBack}>
           <Icon name="arrow-left" size={24} color="black" />
@@ -315,28 +294,38 @@ return (
       )}
     </View>
 
-    {!selectedSpecialty && (
+    {/* Step 1: Specialty Selection for Filtering Services */}
+    <View style={styles.specialtiesContainer}>
       <FlatList
         data={specialties}
+        numColumns={3}
+        columnWrapperStyle={{ justifyContent: 'space-between' }}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() => setSelectedSpecialty(item)}
-          >
-            <Text style={styles.listItemText}>{item.name}</Text>
-          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <TouchableOpacity
+              style={[
+                styles.squareItem,
+                selectedSpecialty && selectedSpecialty.id === item.id && styles.selectedItem
+              ]}
+              onPress={() => {
+                setSelectedSpecialty(selectedSpecialty && selectedSpecialty.id === item.id ? null : item);
+              }}
+            >
+              <Text style={styles.listItemText}>{item.name}</Text>
+            </TouchableOpacity>
+          </View>
         )}
         ListHeaderComponent={
-          <Text style={styles.sectionTitle}>Select a Specialty</Text>
+          <Text style={styles.sectionTitle}>Filter by Specialty</Text>
         }
       />
-    )}
+    </View>
 
-    {/* Step 2: Select a Service */}
-    {selectedSpecialty && !selectedService && (
+    {/* Step 2: List of Services */}
+    <View style={styles.servicesContainer}>
       <FlatList
-        data={services}
+        data={filteredServices}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -347,44 +336,25 @@ return (
           </TouchableOpacity>
         )}
         ListHeaderComponent={
-          <Text style={styles.sectionTitle}>
-            Select a Service for {selectedSpecialty.name}
-          </Text>
+          <Text style={styles.sectionTitle}>Select a Service</Text>
         }
       />
-    )}
+    </View>
 
     {/* Step 3: View Available Days */}
     {selectedSpecialty && selectedService && !selectedDay && (
       <FlatList
-        data={availableDays} 
+        data={availableDays}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
-          <View>
-            <TouchableOpacity
-              style={styles.listItem}
-              onPress={() => setSelectedDay(item)}
-            >
-              <Text style={styles.listItemText}>
-                {item.date} {/* Display day */}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Show slots only when a day is selected */}
-            {selectedDay === item && (
-              <FlatList
-              data={slotsForDay || []} // Ensure 'slots' is always an array
-              renderItem={({ item }) => {
-                if (item && item.time && item.id) {
-                  const slotTime = new Date(item.time);
-                  return <Text>{parseTime(slotTime.toString())}</Text>;
-                } else {
-                  return <Text>Invalid Slot Data</Text>;
-                }
-              }}
-            />
-            )}
-          </View>
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => setSelectedDay(item)}
+          >
+            <Text style={styles.listItemText}>
+              {item.date}
+            </Text>
+          </TouchableOpacity>
         )}
         ListHeaderComponent={
           <Text style={styles.sectionTitle}>
@@ -409,7 +379,7 @@ return (
         )}
       />
     )}
-                  
+
     {/* Step 5: Confirm and Book Appointment */}
     {appointmentTime && (
       <View style={styles.actionContainer}>
@@ -427,51 +397,76 @@ return (
 );
 };
 
-
-
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  padding: 16,
-  backgroundColor: '#f5f5f5',
-},
-header: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 16,
-},
-title: {
-  fontSize: 20,
-  fontWeight: 'bold',
-},
-sectionTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  marginBottom: 8,
-},
-listItem: {
-  backgroundColor: '#fff',
-  padding: 12,
-  marginBottom: 8,
-  borderRadius: 8,
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 2,
-},
-listItemText: {
-  fontSize: 16,
-},
-actionContainer: {
-  marginTop: 16,
-  alignItems: 'center',
-},
-selectedTime: {
-  fontSize: 16,
-  marginBottom: 8,
-  fontWeight: 'bold',
-},
-});
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  specialtiesContainer: {
+    maxHeight: 150,
+    marginTop: 16,
+  },
+  servicesContainer: {
+    flex: 1,
+  },
+  squareItem: {
+    backgroundColor: '#fff',
+    width: 100,
+    height: 100,
+    margin: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  selectedItem: {
+    borderColor: 'black',
+    borderWidth: 2,
+  },
+  listItem: {
+    backgroundColor: '#fff',
+    padding: 12,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  listItemText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  actionContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  selectedTime: {
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+}); 
 
 export default AddScreen;
