@@ -115,6 +115,8 @@ const AddScreen = () => {
     }
   };
 
+  
+
   const fetchAvailableSlotsForDay = (selectedDay) => {
     const selectedDate = new Date(selectedDay.date);
 
@@ -143,19 +145,30 @@ const AddScreen = () => {
   const fetchDoctors = async (specialtyId) => {
     try {
       const querySnapshot = await getDocs(collection(firestore, 'doctors'));
-      return querySnapshot.docs
+      const doctorsList = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(doctor => doctor.specialtyId === specialtyId);
+  
+      // Ensure workHours is initialized
+      return doctorsList.map(doctor => ({
+        ...doctor,
+        workHours: doctor.workHours || [] // Default to empty array if undefined
+      }));
     } catch (error) {
       console.error("Error fetching doctors:", error);
       return [];
     }
   };
 
-  const calculateDoctorAvailableSlots = (doctorWorkHours, bookedSlots, doctorId) => {
+  const calculateDoctorAvailableSlots = (doctorWorkHours = [], bookedSlots = [], doctorId) => {
     const freeSlots = [];
     const today = new Date();
     const todayWeekday = today.getDay();
+  
+    if (!doctorWorkHours || !Array.isArray(doctorWorkHours)) {
+      console.error('Invalid doctor work hours:', doctorWorkHours);
+      return freeSlots; // Return empty if data is invalid
+    }
 
     doctorWorkHours.forEach(({ day, startTime, endTime }) => {
       if (day === "Sunday" && todayWeekday !== 0) return;
@@ -191,8 +204,9 @@ const AddScreen = () => {
         currentSlot.setHours(currentSlot.getHours() + 1);
       }
     });
+  
     return freeSlots;
-};
+  };
 
 const fetchAvailableDaysForSpecialty = async (specialtyId) => {
   try {
@@ -237,7 +251,13 @@ const fetchAvailableDaysForSpecialty = async (specialtyId) => {
 };
   
 const bookAppointment = async () => {
-  if (!appointmentTime || !selectedDay) return alert('Please select an appointment time!');
+  if (!appointmentTime || !selectedDay) {
+    return alert('Please select an appointment time and a day!');
+  }
+
+  if (!selectedSpecialty || !selectedService || !selectedDoctor) {
+    return alert('Please ensure all selections are made!');
+  }
 
   try {
     const clientName = await fetchClientData(user.uid, 'name');
@@ -252,12 +272,12 @@ const bookAppointment = async () => {
     appointmentEndTime.setHours(appointmentEndTime.getHours() + 1);
 
     const newAppointment = {
-      specialtyId: selectedSpecialty.id,
-      specialtyName: selectedSpecialty.name,
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      doctorId: selectedDoctor.id,
-      doctorName: selectedDoctor.name,
+      specialtyId: selectedSpecialty?.id,
+      specialtyName: selectedSpecialty?.name,
+      serviceId: selectedService?.id,
+      serviceName: selectedService?.name,
+      doctorId: selectedDoctor?.id,
+      doctorName: selectedDoctor?.name,
       clientId,
       clientName,
       startTime: selectedDateTime,
@@ -294,108 +314,115 @@ return (
       )}
     </View>
 
-    {/* Step 1: Specialty Selection for Filtering Services */}
-    <View style={styles.specialtiesContainer}>
-      <FlatList
-        data={specialties}
-        numColumns={3}
-        columnWrapperStyle={{ justifyContent: 'space-between' }}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={{ flex: 1, alignItems: 'center' }}>
+    {!selectedService ? (
+      <>
+        {/* Step 1: Specialty Selection for Filtering Services */}
+        <View style={styles.specialtiesContainer}>
+          <FlatList
+            data={specialties}
+            numColumns={3}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[
+                    styles.squareItem,
+                    selectedSpecialty && selectedSpecialty.id === item.id && styles.selectedItem
+                  ]}
+                  onPress={() => {
+                    setSelectedSpecialty(selectedSpecialty && selectedSpecialty.id === item.id ? null : item);
+                  }}
+                >
+                  <Text style={styles.listItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            ListHeaderComponent={
+              <Text style={styles.sectionTitle}>Filter by Specialty</Text>
+            }
+          />
+        </View>
+
+        {/* Step 2: List of Services */}
+        <View style={styles.servicesContainer}>
+          <FlatList
+            data={filteredServices}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.listItem}
+                onPress={() => setSelectedService(item)}
+              >
+                <Text style={styles.listItemText}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+            ListHeaderComponent={
+              <Text style={styles.sectionTitle}>Select a Service</Text>
+            }
+          />
+        </View>
+      </>
+    ) : (
+      <>
+        {/* Step 3: View Available Days */}
+        {selectedSpecialty && selectedService && !selectedDay && (
+          <FlatList
+            data={availableDays}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.listItem}
+                onPress={() => setSelectedDay(item)}
+              >
+                <Text style={styles.listItemText}>
+                  {item.date}
+                </Text>
+              </TouchableOpacity>
+            )}
+            ListHeaderComponent={
+              <Text style={styles.sectionTitle}>
+                Select a Day for {selectedService.name}
+              </Text>
+            }
+          />
+        )}
+
+        {/* Step 4: Select an Appointment Slot */}
+        {selectedDay && availableSlots.length > 0 && (
+          <FlatList
+            data={availableSlots}
+            keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.listItem,
+                  appointmentTime === item.time ? styles.selectedItem : null, // Apply selectedItem style conditionally
+                ]}
+                onPress={() => setAppointmentTime(item.time)}
+              >
+                <Text>{item.time}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+
+        {/* Step 5: Confirm and Book Appointment */}
+        {appointmentTime && (
+          <View style={styles.actionContainer}>
             <TouchableOpacity
-              style={[
-                styles.squareItem,
-                selectedSpecialty && selectedSpecialty.id === item.id && styles.selectedItem
-              ]}
-              onPress={() => {
-                setSelectedSpecialty(selectedSpecialty && selectedSpecialty.id === item.id ? null : item);
-              }}
+              style={styles.button}
+              onPress={bookAppointment}
             >
-              <Text style={styles.listItemText}>{item.name}</Text>
+              <Text style={styles.buttonText}>Book Appointment</Text>
             </TouchableOpacity>
           </View>
         )}
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>Filter by Specialty</Text>
-        }
-      />
-    </View>
-
-    {/* Step 2: List of Services */}
-    <View style={styles.servicesContainer}>
-      <FlatList
-        data={filteredServices}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() => setSelectedService(item)}
-          >
-            <Text style={styles.listItemText}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>Select a Service</Text>
-        }
-      />
-    </View>
-
-    {/* Step 3: View Available Days */}
-    {selectedSpecialty && selectedService && !selectedDay && (
-      <FlatList
-        data={availableDays}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() => setSelectedDay(item)}
-          >
-            <Text style={styles.listItemText}>
-              {item.date}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>
-            Select a Day for {selectedService.name}
-          </Text>
-        }
-      />
-    )}
-
-    {/* Step 4: Select an Appointment Slot */}
-    {selectedDay && availableSlots.length > 0 && (
-      <FlatList
-        data={availableSlots}
-        keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() => setAppointmentTime(item.time)}
-          >
-            <Text>{item.time}</Text>
-          </TouchableOpacity>
-        )}
-      />
-    )}
-
-    {/* Step 5: Confirm and Book Appointment */}
-    {appointmentTime && (
-      <View style={styles.actionContainer}>
-        <Text style={styles.selectedTime}>
-          Selected Time: {appointmentTime}
-        </Text>
-        <Button
-          title="Book Appointment"
-          onPress={bookAppointment}
-          color="green"
-        />
-      </View>
+      </>
     )}
   </KeyboardAvoidingView>
 );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -467,6 +494,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: 'bold',
   },
+  button: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 50,
+    borderRadius: 25,
+    width: '80%',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  buttonLoading: {
+    backgroundColor: '#000',
+  },
+  
 }); 
 
 export default AddScreen;
