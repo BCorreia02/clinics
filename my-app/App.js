@@ -80,11 +80,12 @@ export default function App() {
 
   
   const ClientTabs = () => (
-    <Tab.Navigator>
+    <Tab.Navigator options={{ headerShown: false }}>
       <Tab.Screen
         name="HomeClient"
         component={HomeClientScreen}
         options={{
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Icon name="home" color={color} size={size} />,
         }}
       />
@@ -92,6 +93,7 @@ export default function App() {
         name="Agenda"
         component={AgendaScreen}
         options={{
+          headerShown: false ,
           tabBarIcon: ({ color, size }) => <Icon name="calendar" color={color} size={size} />,
         }}
       />
@@ -99,6 +101,7 @@ export default function App() {
         name="Add"
         component={AddScreen}
         options={{
+          headerShown: false ,
           tabBarIcon: ({ color, size }) => <Icon name="plus-circle" color={color} size={size} />,
         }}
       />
@@ -106,19 +109,21 @@ export default function App() {
         name="Rewards"
         component={RewardsScreen}
         options={{
+          headerShown: false ,
           tabBarIcon: ({ color, size }) => <Icon name="gift" color={color} size={size} />,
         }}
       />
       <Tab.Screen
         name="Profile"
         options={{
+          headerShown: false ,
           tabBarIcon: ({ color, size }) => <Icon name="user" color={color} size={size} />,
         }}
       >
         {(props) => <ProfileScreen {...props} handleLogout={handleLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
-  );
+  );  
 
   const DoctorTabs = () => (
     <Tab.Navigator>
